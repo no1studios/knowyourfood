@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useGuestSession } from '@/components/GuestSession';
 import { useLocale } from '@/components/LocaleProvider';
 import { useTheme } from '@/components/ThemeProvider';
 import { Button, FoodPhoto, IconButton, TextField, Wordmark } from '@/components/ui';
@@ -13,6 +14,7 @@ export default function AuthPhoneScreen() {
   const { locale } = useLocale();
   const { colors, type, space, radius } = useTheme();
   const insets = useSafeAreaInsets();
+  const { setHasRecipes, showToast } = useGuestSession();
   const c = copy(locale);
   const [phone, setPhone] = useState(c.auth.phoneValue);
 
@@ -61,7 +63,15 @@ export default function AuthPhoneScreen() {
           <Button variant="secondary" size="lg" block onPress={() => router.push('/auth/google')}>
             {c.auth.google}
           </Button>
-          <Button variant="ghost" block onPress={() => router.replace('/(tabs)')}>
+          <Button
+            variant="ghost"
+            block
+            onPress={() => {
+              setHasRecipes(true);
+              showToast(c.home.guestToast);
+              router.replace('/(tabs)');
+            }}
+          >
             {c.auth.guest}
           </Button>
           <Text

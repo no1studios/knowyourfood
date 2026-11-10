@@ -9,6 +9,8 @@ export { Fab } from './Fab';
 export { FoodPhoto } from './FoodPhoto';
 export { Icon } from './Icon';
 export { IconButton } from './IconButton';
+export { ListRow } from './ListRow';
+export { Modal } from './Modal';
 export { RecipeCard } from './RecipeCard';
 export { ShareSheet } from './ShareSheet';
 export type { ShareOption, ShareTarget } from './ShareSheet';

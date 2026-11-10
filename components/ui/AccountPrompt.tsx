@@ -1,4 +1,5 @@
 import { Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTheme } from '@/components/ThemeProvider';
 
@@ -22,6 +23,8 @@ type Props = {
   onPrimary?: () => void;
   onSecondary?: () => void;
   onDismiss?: () => void;
+  /** Wrap sheet in bottom-sheet chrome (grab + raised surface). */
+  sheetChrome?: boolean;
 };
 
 export function AccountPrompt({
@@ -30,8 +33,10 @@ export function AccountPrompt({
   onPrimary,
   onSecondary,
   onDismiss,
+  sheetChrome = false,
 }: Props) {
   const { colors, type, radius, space, elevation } = useTheme();
+  const insets = useSafeAreaInsets();
 
   if (variant === 'banner') {
     return (
@@ -71,23 +76,23 @@ export function AccountPrompt({
           </Text>
         </View>
         <Button variant="tonal" size="sm" onPress={onPrimary}>
-          {copy.primary || 'Sign up'}
+          {copy.primary || 'Sign in'}
         </Button>
       </View>
     );
   }
 
-  return (
-    <View style={{ gap: space[3], padding: space[5] }}>
+  const body = (
+    <View style={{ gap: space[3], paddingTop: space[2] }}>
       <Wordmark size="sm" />
-      <Text style={[type['title-2'], { color: colors.ink }]}>
+      <Text style={[type['title-1'], { color: colors.ink, marginTop: space[2] }]}>
         {copy.title || 'Keep your recipes safe'}
       </Text>
       <Text style={[type.body, { color: colors.inkMuted }]}>
         {copy.body ||
           'You have saved 12 recipes as a guest. Create a free account to back them up and use them on any phone.'}
       </Text>
-      <View style={{ gap: space[2], marginTop: space[2] }}>
+      <View style={{ gap: space[2], marginTop: space[3] }}>
         <Button variant="primary" size="lg" block icon="phone" onPress={onPrimary}>
           {copy.primary || 'Continue with phone number'}
         </Button>
@@ -98,6 +103,40 @@ export function AccountPrompt({
           {copy.dismiss || 'Not now'}
         </Button>
       </View>
+    </View>
+  );
+
+  if (!sheetChrome) {
+    return <View style={{ gap: space[3], padding: space[5] }}>{body}</View>;
+  }
+
+  return (
+    <View
+      style={[
+        {
+          width: '100%',
+          backgroundColor: colors.surfaceRaised,
+          borderTopLeftRadius: radius.xl,
+          borderTopRightRadius: radius.xl,
+          paddingHorizontal: space[5],
+          paddingTop: space[2],
+          paddingBottom: Math.max(insets.bottom, space[6]),
+        },
+        elevation[3],
+      ]}
+    >
+      <View
+        style={{
+          width: 40,
+          height: 4,
+          borderRadius: radius.full,
+          backgroundColor: colors.borderStrong,
+          opacity: 0.5,
+          alignSelf: 'center',
+          marginBottom: space[3],
+        }}
+      />
+      {body}
     </View>
   );
 }

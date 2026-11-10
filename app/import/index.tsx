@@ -120,7 +120,7 @@ export default function ImportScreen() {
           icon="bookmark"
           onPress={() => {
             setHasRecipes(true);
-            router.push('/recipe/demo');
+            router.push('/account-prompt?variant=first-import');
           }}
         >
           {c.imp.cta}
