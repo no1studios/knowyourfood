@@ -2,7 +2,13 @@
 
 India-first personal recipe app — Expo React Native (TypeScript) + Expo Router.
 
-This repository currently contains the **scaffold only**: theme tokens, navigation skeleton, stub screens matching locked artboard names, EN|HI i18n chrome, and stub interfaces for auth / API / analytics. No Phone OTP, Google/Apple SSO, Vercel API, or PostHog yet.
+Expo React Native app with locked DS theme tokens and a first UI slice matching MVP screens v2:
+
+- Onboarding language → diet → source (01–03)
+- My Recipes empty (04b) and guest home with hero (04)
+- DS primitives: Button, Wordmark, FoodPhoto, RecipeCard, EmptyState, floating BottomNav, etc.
+
+Auth / API / PostHog remain stubs — no real OTP or SSO yet.
 
 ## Run
 

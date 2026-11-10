@@ -1,61 +1,134 @@
-import { Pressable, Text, View } from 'react-native';
 import { router } from 'expo-router';
+import { Pressable, ScrollView, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useLocale } from '@/components/LocaleProvider';
-import { StubScreen } from '@/components/StubScreen';
 import { useTheme } from '@/components/ThemeProvider';
-import { t, type AppLocale } from '@/lib/i18n';
+import { Button, FoodPhoto, Icon, Wordmark } from '@/components/ui';
+import { FloatingCta } from '@/components/ui/FloatingCta';
+import { copy } from '@/lib/i18n/copy';
+import type { AppLocale } from '@/lib/i18n';
 
 /** Artboard 01 — Onboarding — language */
 export default function OnboardingLanguage() {
-  const { setLocale, locale } = useLocale();
-  const { colors, type, space, radius } = useTheme();
+  const { locale, setLocale } = useLocale();
+  const { colors, type, space, radius, elevation } = useTheme();
+  const insets = useSafeAreaInsets();
+  const c = copy(locale);
 
-  const pick = (next: AppLocale) => {
-    setLocale(next);
-    router.push('/onboarding/diet');
-  };
+  const select = (next: AppLocale) => setLocale(next);
 
   return (
-    <View style={{ flex: 1 }}>
-      <StubScreen
-        artboard={t('onboarding.languageTitle')}
-        subtitle="Full-bleed food · large wordmark · language tiles (EN | HI)"
-        links={[
-          { href: '/onboarding/diet', label: t('common.continue') },
-          { href: '/(tabs)?state=empty', label: 'Skip to My recipes (empty)' },
-        ]}
-      />
-      <View
-        style={{
-          position: 'absolute',
-          left: space[4],
-          right: space[4],
-          bottom: space[10],
-          flexDirection: 'row',
-          gap: space[3],
-        }}
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
+      <ScrollView
+        bounces={false}
+        contentContainerStyle={{ paddingBottom: 140 + insets.bottom }}
       >
-        {(['en', 'hi'] as const).map((code) => (
-          <Pressable
-            key={code}
-            onPress={() => pick(code)}
-            style={{
-              flex: 1,
-              backgroundColor: locale === code ? colors.primarySoft : colors.surface,
-              borderRadius: radius.md,
-              borderWidth: 1,
-              borderColor: locale === code ? colors.primary : colors.border,
-              paddingVertical: space[4],
-              alignItems: 'center',
-            }}
-          >
-            <Text style={[type.label, { color: colors.ink }]}>
-              {code === 'en' ? 'English' : 'हिंदी'}
+        <FoodPhoto art="thali" tone="haldi" ratio="360/392" alt={c.lang.alt} />
+        <View
+          style={{
+            marginTop: -28,
+            borderTopLeftRadius: radius.xl,
+            borderTopRightRadius: radius.xl,
+            backgroundColor: colors.bg,
+            paddingHorizontal: space[5],
+            paddingTop: 28,
+            gap: space[5],
+          }}
+        >
+          <View style={{ gap: space[2] }}>
+            <Wordmark size="lg" />
+            <Text style={[type['title-2'], { color: colors.ink, marginTop: space[2] }]}>
+              {c.lang.title}
             </Text>
-          </Pressable>
-        ))}
-      </View>
+            <Text
+              style={[
+                locale === 'en' ? { fontFamily: type.body.fontFamily, fontSize: 15, lineHeight: 24 } : type.body,
+                { color: colors.inkMuted },
+              ]}
+            >
+              {c.lang.alt}
+            </Text>
+          </View>
+
+          <View style={{ flexDirection: 'row', gap: space[3] }}>
+            {(
+              [
+                {
+                  code: 'en' as const,
+                  glyph: 'Aa',
+                  name: c.lang.enName,
+                  sub: c.lang.enSub,
+                },
+                {
+                  code: 'hi' as const,
+                  glyph: 'अ',
+                  name: c.lang.hiName,
+                  sub: c.lang.hiSub,
+                },
+              ] as const
+            ).map((tile) => {
+              const on = locale === tile.code;
+              return (
+                <Pressable
+                  key={tile.code}
+                  onPress={() => select(tile.code)}
+                  style={[
+                    {
+                      flex: 1,
+                      padding: space[4],
+                      borderRadius: radius.lg,
+                      backgroundColor: on ? colors.primarySoft : colors.surface,
+                      gap: space[1],
+                    },
+                    on
+                      ? { borderWidth: 2, borderColor: colors.primary }
+                      : elevation[1],
+                  ]}
+                >
+                  {on ? (
+                    <View
+                      style={{
+                        position: 'absolute',
+                        top: 12,
+                        right: 12,
+                        width: 24,
+                        height: 24,
+                        borderRadius: 999,
+                        backgroundColor: colors.primary,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <Icon name="check" size={16} color={colors.onPrimary} />
+                    </View>
+                  ) : null}
+                  <Text
+                    style={{
+                      fontFamily: type.display.fontFamily,
+                      fontSize: 30,
+                      lineHeight: 36,
+                      color: colors.ink,
+                    }}
+                  >
+                    {tile.glyph}
+                  </Text>
+                  <Text style={[type.label, { color: colors.ink, fontWeight: '700' }]}>{tile.name}</Text>
+                  <Text style={[type.caption, { color: colors.inkMuted }]}>{tile.sub}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          <Text style={[type.caption, { color: colors.inkMuted }]}>{c.lang.note}</Text>
+        </View>
+      </ScrollView>
+
+      <FloatingCta>
+        <Button variant="primary" size="lg" block onPress={() => router.push('/onboarding/diet')}>
+          {c.continue}
+        </Button>
+      </FloatingCta>
     </View>
   );
 }
