@@ -19,6 +19,7 @@ type Props = {
   lang?: Locale;
   time?: string;
   servings?: string;
+  source?: string;
   saved?: boolean;
   tags?: { label: string; tone?: PastelTone | 'neutral' | 'primary' }[];
   onPress?: () => void;
@@ -36,6 +37,7 @@ export function RecipeCard({
   lang = 'en',
   time,
   servings,
+  source,
   saved,
   tags,
   onPress,
@@ -43,6 +45,62 @@ export function RecipeCard({
 }: Props) {
   const { colors, type, radius, space, elevation, size } = useTheme();
   const hero = variant === 'hero';
+  const row = variant === 'row';
+
+  if (row) {
+    return (
+      <Pressable
+        onPress={onPress}
+        style={({ pressed }) => [
+          {
+            backgroundColor: colors.surface,
+            borderRadius: radius.lg,
+            overflow: 'hidden',
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: space[3],
+            padding: space[2],
+            opacity: pressed ? 0.96 : 1,
+          },
+          elevation[2],
+        ]}
+      >
+        <View style={{ width: 72, borderRadius: radius.md, overflow: 'hidden' }}>
+          <FoodPhoto src={image} art={art} tone={tone} alt={title} ratio="1/1" />
+        </View>
+        <View style={{ flex: 1, gap: 4, minWidth: 0 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
+            {diet ? <DietBadge diet={diet} lang={lang} compact /> : null}
+            {source ? (
+              <Text style={[type.overline, { color: colors.inkMuted }]} numberOfLines={1}>
+                {source}
+              </Text>
+            ) : null}
+          </View>
+          <Text numberOfLines={2} style={[type['title-3'], { color: colors.ink }]}>
+            {title}
+          </Text>
+          {(time || servings) && (
+            <View style={{ flexDirection: 'row', gap: space[3] }}>
+              {time ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <Icon name="clock" size={14} color={colors.inkMuted} />
+                  <Text style={[type.caption, { color: colors.inkMuted }]}>{time}</Text>
+                </View>
+              ) : null}
+              {servings ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <Icon name="users" size={14} color={colors.inkMuted} />
+                  <Text style={[type.caption, { color: colors.inkMuted }]}>{servings}</Text>
+                </View>
+              ) : null}
+            </View>
+          )}
+        </View>
+        <Icon name="chevronRight" size={20} color={colors.inkMuted} />
+      </Pressable>
+    );
+  }
 
   return (
     <Pressable
@@ -106,7 +164,14 @@ export function RecipeCard({
         </View>
       </View>
 
-      <View style={{ paddingHorizontal: space[4], paddingTop: space[3], paddingBottom: space[4], gap: space[2] }}>
+      <View
+        style={{
+          paddingHorizontal: space[4],
+          paddingTop: space[3],
+          paddingBottom: space[4],
+          gap: space[2],
+        }}
+      >
         {tags && tags.length > 0 ? (
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space[1] }}>
             {tags.map((t) => (
@@ -116,13 +181,7 @@ export function RecipeCard({
             ))}
           </View>
         ) : null}
-        <Text
-          numberOfLines={2}
-          style={[
-            hero ? type['title-2'] : type['title-3'],
-            { color: colors.ink },
-          ]}
-        >
+        <Text numberOfLines={2} style={[hero ? type['title-2'] : type['title-3'], { color: colors.ink }]}>
           {title}
         </Text>
         {hero && description ? (

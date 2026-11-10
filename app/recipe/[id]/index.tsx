@@ -1,22 +1,191 @@
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useState } from 'react';
+import { ScrollView, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { StubScreen } from '@/components/StubScreen';
-import { t } from '@/lib/i18n';
+import { useLocale } from '@/components/LocaleProvider';
+import { useTheme } from '@/components/ThemeProvider';
+import {
+  Button,
+  Chip,
+  DietBadge,
+  FoodPhoto,
+  Icon,
+  IconButton,
+  Tag,
+} from '@/components/ui';
+import { FloatingCta } from '@/components/ui/FloatingCta';
+import { copy } from '@/lib/i18n/copy';
 
 /** Artboard 06 — Recipe detail */
 export default function RecipeDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const { locale } = useLocale();
+  const { colors, type, space, radius, elevation } = useTheme();
+  const insets = useSafeAreaInsets();
+  const c = copy(locale);
+  const [tab, setTab] = useState<'ing' | 'steps'>('ing');
+  const [saved, setSaved] = useState(true);
 
   return (
-    <StubScreen
-      artboard={t('recipe.detailTitle')}
-      subtitle={`id=${id} · Edge-to-edge hero · overlay chrome · floating CTA · tabs`}
-      links={[
-        { href: `/recipe/${id}/share`, label: t('recipe.shareTitle') },
-        { href: `/recipe/${id}/edit`, label: t('recipe.editorTitle') },
-        { href: '/account-prompt?variant=first-share', label: t('accountPrompt.firstShare') },
-        { href: '/(tabs)', label: t('nav.recipes') },
-      ]}
-    />
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
+      <View
+        pointerEvents="box-none"
+        style={{
+          position: 'absolute',
+          top: insets.top + 8,
+          left: 12,
+          right: 12,
+          zIndex: 5,
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 8,
+        }}
+      >
+        <IconButton icon="chevronLeft" label={c.back} variant="surface" onPress={() => router.back()} />
+        <View style={{ flex: 1 }} />
+        <IconButton
+          icon="share"
+          label={c.det.share}
+          variant="surface"
+          onPress={() => router.push(`/recipe/${id}/share`)}
+        />
+        <IconButton
+          icon="edit"
+          label={c.det.edit}
+          variant="surface"
+          onPress={() => router.push(`/recipe/${id}/edit`)}
+        />
+      </View>
+
+      <ScrollView bounces={false} contentContainerStyle={{ paddingBottom: 140 + insets.bottom }}>
+        <View>
+          <FoodPhoto art="bowl" tone="haldi" ratio="360/360" alt={c.det.title} />
+          <View style={{ position: 'absolute', right: 16, bottom: 40 }}>
+            <IconButton
+              icon="bookmark"
+              label={c.det.saved}
+              variant="surface"
+              pressed={saved}
+              onPress={() => setSaved((v) => !v)}
+            />
+          </View>
+        </View>
+
+        <View
+          style={{
+            marginTop: -24,
+            borderTopLeftRadius: radius.xl,
+            borderTopRightRadius: radius.xl,
+            backgroundColor: colors.bg,
+            paddingHorizontal: space[5],
+            paddingTop: space[5],
+            gap: space[4],
+          }}
+        >
+          <View style={{ gap: space[2] }}>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
+              <DietBadge diet="veg" lang={locale} />
+              {c.det.tags.map((tg) => (
+                <Tag key={tg.label} tone={tg.tone}>
+                  {tg.label}
+                </Tag>
+              ))}
+            </View>
+            <Text style={[type['title-1'], { color: colors.ink }]}>{c.det.title}</Text>
+            <Text style={[type.caption, { color: colors.inkMuted }]}>{c.det.source}</Text>
+          </View>
+
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            {c.det.stats.map((s) => (
+              <View
+                key={s.k}
+                style={[
+                  {
+                    flex: 1,
+                    paddingVertical: 10,
+                    paddingHorizontal: 12,
+                    borderRadius: radius.md,
+                    backgroundColor: colors.surface,
+                    gap: 2,
+                  },
+                  elevation[1],
+                ]}
+              >
+                <Icon name={s.icon} size={18} color={colors.inkMuted} />
+                <Text style={[type.label, { color: colors.ink, fontWeight: '700' }]}>{s.v}</Text>
+                <Text style={[type.caption, { color: colors.inkMuted }]}>{s.k}</Text>
+              </View>
+            ))}
+          </View>
+
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <Chip selected={tab === 'ing'} count={6} onPress={() => setTab('ing')}>
+              {c.det.tabIng}
+            </Chip>
+            <Chip selected={tab === 'steps'} count={6} onPress={() => setTab('steps')}>
+              {c.det.tabSteps}
+            </Chip>
+          </View>
+
+          {tab === 'ing' ? (
+            <View>
+              {c.det.ing.map((r) => (
+                <View
+                  key={r.title}
+                  style={{
+                    flexDirection: 'row',
+                    justifyContent: 'space-between',
+                    gap: 12,
+                    paddingVertical: 12,
+                    borderBottomWidth: 1,
+                    borderBottomColor: colors.border,
+                  }}
+                >
+                  <Text style={[type.body, { color: colors.ink, fontWeight: '600', flex: 1 }]}>
+                    {r.title}
+                  </Text>
+                  <Text style={[type.body, { color: colors.inkMuted }]}>{r.qty}</Text>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <View style={{ gap: space[4] }}>
+              {c.det.steps.map((text, i) => (
+                <View key={text} style={{ flexDirection: 'row', gap: 12 }}>
+                  <View
+                    style={{
+                      width: 28,
+                      height: 28,
+                      borderRadius: radius.full,
+                      backgroundColor: colors.primarySoft,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <Text style={[type.caption, { color: colors.onPrimarySoft, fontWeight: '700' }]}>
+                      {i + 1}
+                    </Text>
+                  </View>
+                  <Text style={[type['body-lg'], { color: colors.ink, flex: 1 }]}>{text}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+        </View>
+      </ScrollView>
+
+      <FloatingCta>
+        <Button
+          variant="primary"
+          size="lg"
+          block
+          icon="cart"
+          onPress={() => router.push('/(tabs)/checklist')}
+        >
+          {c.det.cta}
+        </Button>
+      </FloatingCta>
+    </View>
   );
 }

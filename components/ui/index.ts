@@ -10,6 +10,8 @@ export { FoodPhoto } from './FoodPhoto';
 export { Icon } from './Icon';
 export { IconButton } from './IconButton';
 export { RecipeCard } from './RecipeCard';
+export { ShareSheet } from './ShareSheet';
+export type { ShareOption, ShareTarget } from './ShareSheet';
 export { Tag } from './Tag';
 export { TextField } from './TextField';
 export { Wordmark } from './Wordmark';

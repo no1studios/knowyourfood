@@ -6,7 +6,8 @@ Expo React Native app with locked DS theme tokens and a first UI slice matching 
 
 - Onboarding language → diet → source (01–03)
 - My Recipes empty (04b) and guest home with hero (04)
-- DS primitives: Button, Wordmark, FoodPhoto, RecipeCard, EmptyState, floating BottomNav, etc.
+- Import (05), Recipe detail (06), Share sheet (06b), Auth phone + OTP (09 + guest continue-as-guest)
+- DS primitives: Button, Wordmark, FoodPhoto, RecipeCard, EmptyState, ShareSheet, floating BottomNav, etc.
 
 Auth / API / PostHog remain stubs — no real OTP or SSO yet.
 
