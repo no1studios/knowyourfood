@@ -11,7 +11,7 @@ npm install
 npx expo start
 ```
 
-Then open in Expo Go (Android / iOS) or press `w` for web.
+Then press `w` in the Expo terminal to open web (or open the URL Expo prints for web). Prefer that over a bare Metro tab if the page looks empty — web is configured as a single-page app (`web.output: "single"`).
 
 Other scripts:
 

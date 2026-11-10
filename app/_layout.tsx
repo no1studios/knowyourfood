@@ -16,10 +16,12 @@ import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
+import { Platform, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 
 import { ThemeProvider, useTheme } from '@/components/ThemeProvider';
+import { lightColors } from '@/src/theme';
 
 export { ErrorBoundary } from 'expo-router';
 
@@ -27,7 +29,10 @@ export const unstable_settings = {
   anchor: '(tabs)',
 };
 
-SplashScreen.preventAutoHideAsync();
+// Native only — calling this on web with SSR/`return null` yields a permanent blank root.
+if (Platform.OS !== 'web') {
+  SplashScreen.preventAutoHideAsync().catch(() => {});
+}
 
 export default function RootLayout() {
   const [loaded, error] = useFonts({
@@ -44,14 +49,24 @@ export default function RootLayout() {
   });
 
   useEffect(() => {
-    if (error) throw error;
+    if (error) {
+      console.warn('Font load failed; continuing with system fonts', error);
+    }
   }, [error]);
 
   useEffect(() => {
-    if (loaded) SplashScreen.hideAsync();
-  }, [loaded]);
+    if (loaded || error) {
+      SplashScreen.hideAsync().catch(() => {});
+    }
+  }, [loaded, error]);
 
-  if (!loaded) return null;
+  // Never return null on web — that clears the root and looks like a blank black page
+  // (especially under prefers-color-scheme: dark body styles).
+  const fontsReady = loaded || error != null || Platform.OS === 'web';
+
+  if (!fontsReady) {
+    return <View style={{ flex: 1, backgroundColor: lightColors.bg }} />;
+  }
 
   return (
     <ThemeProvider>

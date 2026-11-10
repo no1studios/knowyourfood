@@ -17,11 +17,13 @@ export default function Root({ children }: { children: ReactNode }) {
 }
 
 const responsiveBackground = `
-body {
+html, body, #root {
+  height: 100%;
   background-color: #f7f6f2;
 }
+/* Keep canvas off-black even when OS is in dark mode so a pre-hydrate root never looks empty. */
 @media (prefers-color-scheme: dark) {
-  body {
-    background-color: #121411;
+  html, body, #root {
+    background-color: #f7f6f2;
   }
 }`;
