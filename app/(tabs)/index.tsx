@@ -18,32 +18,66 @@ import {
   Tag,
 } from '@/components/ui';
 import { copy } from '@/lib/i18n/copy';
+import type { GuestRecipe } from '@/lib/guest-store';
 
-/** Artboards 04 / 04b — My recipes (+ quiet banner A6, signed-in C4) */
+function localizedRecipe(recipe: GuestRecipe, hi: boolean) {
+  return {
+    title: hi && recipe.titleHi ? recipe.titleHi : recipe.title,
+    description: hi && recipe.descriptionHi ? recipe.descriptionHi : recipe.description,
+    time: hi && recipe.timeHi ? recipe.timeHi : recipe.time,
+    servings: hi && recipe.servingsHi ? recipe.servingsHi : recipe.servings,
+    tags: recipe.tags.map((t) => ({
+      label: hi && t.labelHi ? t.labelHi : t.label,
+      tone: t.tone,
+    })),
+  };
+}
+
+/** Artboards 04 / 04b — My recipes backed by guest local store */
 export default function MyRecipesScreen() {
   const { state } = useLocalSearchParams<{ state?: string }>();
   const { locale } = useLocale();
   const { colors, type, space, radius } = useTheme();
-  const { hasRecipes, setHasRecipes, signedIn, setSignedIn, toast, showToast } = useGuestSession();
+  const {
+    ready,
+    recipes,
+    hasRecipes,
+    signedIn,
+    toast,
+    showToast,
+    seedDemoData,
+    claimMerge,
+    shoppingItems,
+  } = useGuestSession();
   const insets = useSafeAreaInsets();
   const c = copy(locale);
+  const hi = locale === 'hi';
   const bottomPad = 12 + 72 + 24 + insets.bottom;
+  const unchecked = shoppingItems.filter((i) => !i.checked).length;
 
   useEffect(() => {
-    if (state === 'populated' || state === 'signed-in') {
-      setHasRecipes(true);
+    if (!ready) return;
+    if (state === 'populated') {
+      void seedDemoData();
     }
     if (state === 'signed-in') {
-      setSignedIn(true);
-      showToast(c.merge.keep.toast);
+      void (async () => {
+        await seedDemoData();
+        await claimMerge('keep-all');
+        showToast(c.merge.keep.toast);
+      })();
     }
-  }, [state, setHasRecipes, setSignedIn, showToast, c.merge.keep.toast]);
+  }, [state, ready, seedDemoData, claimMerge, showToast, c.merge.keep.toast]);
 
   useEffect(() => {
     if (!toast) return;
     const id = setTimeout(() => showToast(null), 3200);
     return () => clearTimeout(id);
   }, [toast, showToast]);
+
+  if (!ready) {
+    return <View style={{ flex: 1, backgroundColor: colors.bg }} />;
+  }
 
   if (!hasRecipes) {
     return (
@@ -62,23 +96,13 @@ export default function MyRecipesScreen() {
                 size="lg"
                 block
                 icon="download"
-                onPress={() => {
-                  setHasRecipes(true);
-                  router.push('/import');
-                }}
+                onPress={() => router.push('/import')}
               >
                 {c.empty.action}
               </Button>
             }
             secondary={
-              <Button
-                variant="ghost"
-                block
-                onPress={() => {
-                  setHasRecipes(true);
-                  router.push('/recipe/demo/edit');
-                }}
-              >
+              <Button variant="ghost" block onPress={() => router.push('/recipe/demo/edit')}>
                 {c.empty.secondary}
               </Button>
             }
@@ -87,6 +111,10 @@ export default function MyRecipesScreen() {
       </View>
     );
   }
+
+  const hero = recipes[0];
+  const tiles = recipes.slice(1);
+  const heroL = localizedRecipe(hero, hi);
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
@@ -109,7 +137,7 @@ export default function MyRecipesScreen() {
                   icon="cart"
                   label={c.home.list}
                   variant="surface"
-                  badge={8}
+                  badge={unchecked || undefined}
                   onPress={() => router.push('/(tabs)/checklist')}
                 />
               )}
@@ -127,59 +155,71 @@ export default function MyRecipesScreen() {
           ) : null}
 
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-            {c.home.chips.map((ch) => (
-              <Chip key={ch.label} size="sm" selected={!!ch.selected} count={ch.count}>
-                {ch.label}
-              </Chip>
-            ))}
+            <Chip size="sm" selected count={recipes.length}>
+              {hi ? 'सभी' : 'All'}
+            </Chip>
           </ScrollView>
 
           <View style={{ gap: space[2] }}>
             <Text style={[type.overline, { color: colors.inkMuted }]}>{c.home.heroEyebrow}</Text>
             <RecipeCard
               variant="hero"
-              title={c.home.hero.title}
-              description={c.home.hero.desc}
-              tags={c.home.hero.tags}
-              diet="veg"
+              title={heroL.title}
+              description={heroL.description}
+              tags={heroL.tags}
+              diet={hero.diet}
               lang={locale}
-              art="bowl"
-              tone="haldi"
-              time={c.home.hero.time}
-              servings={c.home.hero.servings}
+              art={hero.art}
+              tone={hero.tone}
+              time={heroL.time}
+              servings={heroL.servings}
               saved
-              onPress={() => router.push('/recipe/demo')}
+              onPress={() => router.push(`/recipe/${hero.id}`)}
             />
           </View>
 
-          <Text style={[type.overline, { color: colors.inkMuted, marginTop: 4 }]}>
-            {c.home.allLabel}
-          </Text>
-
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
-            {c.home.tiles.map((tile) => (
-              <View key={tile.title} style={{ width: '48%', flexGrow: 1 }}>
-                <RecipeCard
-                  variant="tile"
-                  title={tile.title}
-                  diet={tile.diet}
-                  lang={locale}
-                  art={tile.art}
-                  tone={tile.tone}
-                  time={tile.time}
-                  saved
-                  onPress={() => router.push('/recipe/demo')}
-                />
+          {tiles.length > 0 ? (
+            <>
+              <Text style={[type.overline, { color: colors.inkMuted, marginTop: 4 }]}>
+                {c.home.allLabel}
+              </Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
+                {tiles.map((tile) => {
+                  const L = localizedRecipe(tile, hi);
+                  return (
+                    <View key={tile.id} style={{ width: '48%', flexGrow: 1 }}>
+                      <RecipeCard
+                        variant="tile"
+                        title={L.title}
+                        diet={tile.diet}
+                        lang={locale}
+                        art={tile.art}
+                        tone={tile.tone}
+                        time={L.time}
+                        saved
+                        onPress={() => router.push(`/recipe/${tile.id}`)}
+                      />
+                    </View>
+                  );
+                })}
               </View>
-            ))}
-          </View>
+            </>
+          ) : null}
 
           {!signedIn ? (
             <Pressable onLongPress={() => router.push('/account-prompt?variant=n-recipes')}>
               <AccountPrompt
                 variant="banner"
                 lang={locale}
-                copy={c.home.banner}
+                copy={{
+                  title: hi
+                    ? `अपनी ${recipes.length} रेसिपी का बैकअप लें`
+                    : recipes.length === 1
+                      ? 'Back up your 1 recipe'
+                      : `Back up your ${recipes.length} recipes`,
+                  body: c.home.banner.body,
+                  primary: c.home.banner.primary,
+                }}
                 onPrimary={() => router.push('/auth/phone')}
               />
             </Pressable>

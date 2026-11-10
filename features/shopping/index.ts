@@ -1,2 +1,3 @@
-/** Shopping checklist feature barrel — scaffold only. */
-export {};
+/** Shopping checklist — guest-local helpers. */
+export type { GuestShoppingItem } from '@/lib/guest-store';
+export { buildDemoShopping } from '@/lib/guest-store';

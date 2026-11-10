@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useGuestSession } from '@/components/GuestSession';
 import { useLocale } from '@/components/LocaleProvider';
 import { useTheme } from '@/components/ThemeProvider';
 import { Button, FoodPhoto, Icon, Wordmark } from '@/components/ui';
@@ -11,12 +12,13 @@ import type { AppLocale } from '@/lib/i18n';
 
 /** Artboard 01 — Onboarding — language */
 export default function OnboardingLanguage() {
-  const { locale, setLocale } = useLocale();
+  const { locale } = useLocale();
+  const { setLocalePref } = useGuestSession();
   const { colors, type, space, radius, elevation } = useTheme();
   const insets = useSafeAreaInsets();
   const c = copy(locale);
 
-  const select = (next: AppLocale) => setLocale(next);
+  const select = (next: AppLocale) => setLocalePref(next);
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>

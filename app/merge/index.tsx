@@ -17,19 +17,19 @@ export default function MergeScreen() {
   const variant = (raw as Variant) || 'keep-all';
   const { locale } = useLocale();
   const { colors, type, radius, space } = useTheme();
-  const { setHasRecipes, setSignedIn, showToast } = useGuestSession();
+  const { claimMerge, showToast, seedDemoData, recipes } = useGuestSession();
   const c = copy(locale);
 
-  const finish = (toast: string) => {
-    setHasRecipes(true);
-    setSignedIn(true);
+  const finish = async (toast: string, strategy: 'keep-all' | 'collision' | 'skip') => {
+    if (recipes.length === 0) await seedDemoData();
+    await claimMerge(strategy);
     showToast(toast);
     router.replace('/(tabs)');
   };
 
   useEffect(() => {
     if (variant === 'signed-in') {
-      finish(c.merge.keep.toast);
+      void finish(c.merge.keep.toast, 'keep-all');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [variant]);
@@ -46,9 +46,14 @@ export default function MergeScreen() {
         tone="mint"
         title={c.merge.skip.title}
         body={c.merge.skip.body}
-        onScrimPress={() => finish(c.merge.skip.toast)}
+        onScrimPress={() => void finish(c.merge.skip.toast, 'skip')}
         actions={
-          <Button variant="primary" size="lg" block onPress={() => finish(c.merge.skip.toast)}>
+          <Button
+            variant="primary"
+            size="lg"
+            block
+            onPress={() => void finish(c.merge.skip.toast, 'skip')}
+          >
             {c.merge.skip.primary}
           </Button>
         }
@@ -65,13 +70,18 @@ export default function MergeScreen() {
         tone="haldi"
         title={m.title}
         body={m.body}
-        onScrimPress={() => finish(m.toast)}
+        onScrimPress={() => void finish(m.toast, 'collision')}
         actions={
           <>
-            <Button variant="primary" size="lg" block onPress={() => finish(m.toast)}>
+            <Button
+              variant="primary"
+              size="lg"
+              block
+              onPress={() => void finish(m.toast, 'collision')}
+            >
               {m.primary}
             </Button>
-            <Button variant="ghost" block onPress={() => finish(m.toast)}>
+            <Button variant="ghost" block onPress={() => void finish(m.toast, 'collision')}>
               {m.secondary}
             </Button>
           </>
@@ -100,10 +110,15 @@ export default function MergeScreen() {
       tone="sky"
       title={m.title}
       body={m.body}
-      onScrimPress={() => finish(m.toast)}
+      onScrimPress={() => void finish(m.toast, 'keep-all')}
       actions={
         <>
-          <Button variant="primary" size="lg" block onPress={() => finish(m.toast)}>
+          <Button
+            variant="primary"
+            size="lg"
+            block
+            onPress={() => void finish(m.toast, 'keep-all')}
+          >
             {m.primary}
           </Button>
           <Button variant="ghost" block onPress={() => router.replace('/(tabs)')}>

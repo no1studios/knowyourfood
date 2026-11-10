@@ -1,41 +1,52 @@
 /**
- * Local DB / cache interface — SQLite or MMKV to be wired later.
+ * Local DB facade over the guest AsyncStorage store.
  */
 
-import type { RecipeDraft, SyncStatus } from './api';
+import {
+  activeRecipes,
+  guestStore,
+  type GuestRecipe,
+  type GuestStoreSnapshot,
+} from '@/lib/guest-store';
+import type { SyncStatus } from '@/lib/api';
 
-export type LocalRecipe = RecipeDraft & {
-  id: string;
-  updatedAt: string;
-  syncStatus: SyncStatus;
-};
+export type LocalRecipe = GuestRecipe;
 
 export interface LocalDb {
   getDeviceId(): Promise<string>;
   listRecipes(): Promise<LocalRecipe[]>;
   upsertRecipe(recipe: LocalRecipe): Promise<void>;
   clearGuestData(): Promise<void>;
+  loadSnapshot(): Promise<GuestStoreSnapshot>;
 }
-
-/** In-memory stub for scaffold. */
-const memory: { deviceId: string; recipes: LocalRecipe[] } = {
-  deviceId: 'guest-device-stub',
-  recipes: [],
-};
 
 export const localDb: LocalDb = {
   async getDeviceId() {
-    return memory.deviceId;
+    const snap = await guestStore.load();
+    return snap.deviceId;
   },
   async listRecipes() {
-    return [...memory.recipes];
+    const snap = await guestStore.load();
+    return activeRecipes(snap);
   },
   async upsertRecipe(recipe) {
-    const idx = memory.recipes.findIndex((r) => r.id === recipe.id);
-    if (idx >= 0) memory.recipes[idx] = recipe;
-    else memory.recipes.push(recipe);
+    await guestStore.update((snap) => {
+      const idx = snap.recipes.findIndex((r) => r.id === recipe.id);
+      const recipes = [...snap.recipes];
+      const next: GuestRecipe = {
+        ...recipe,
+        syncStatus: (recipe.syncStatus || 'local') as SyncStatus,
+        updatedAt: new Date().toISOString(),
+      };
+      if (idx >= 0) recipes[idx] = next;
+      else recipes.push(next);
+      return { ...snap, recipes };
+    });
   },
   async clearGuestData() {
-    memory.recipes = [];
+    await guestStore.clear();
+  },
+  async loadSnapshot() {
+    return guestStore.load();
   },
 };

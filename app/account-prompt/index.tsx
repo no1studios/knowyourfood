@@ -8,8 +8,9 @@ import { useLocale } from '@/components/LocaleProvider';
 import { useTheme } from '@/components/ThemeProvider';
 import { AccountPrompt } from '@/components/ui';
 import { copy } from '@/lib/i18n/copy';
+import type { AccountPromptKind } from '@/lib/guest-store';
 
-type Variant = 'first-save' | 'first-import' | 'first-share' | 'n-recipes' | 'unsynced-exit' | 'banner-quiet';
+type Variant = AccountPromptKind | 'banner-quiet';
 
 /** Guest A1–A6 — AccountPrompt sheet variants (+ quiet banner redirect). */
 export default function AccountPromptScreen() {
@@ -18,15 +19,16 @@ export default function AccountPromptScreen() {
   const { locale } = useLocale();
   const { colors, type, radius, space } = useTheme();
   const insets = useSafeAreaInsets();
-  const { setHasRecipes } = useGuestSession();
+  const { recipes, notePromptShown, seedDemoData } = useGuestSession();
   const c = copy(locale);
 
   useEffect(() => {
     if (variant === 'banner-quiet') {
-      setHasRecipes(true);
-      router.replace('/(tabs)');
+      void seedDemoData().then(() => router.replace('/(tabs)'));
+      return;
     }
-  }, [variant, setHasRecipes]);
+    void notePromptShown(variant);
+  }, [variant, notePromptShown, seedDemoData]);
 
   if (variant === 'banner-quiet') {
     return <View style={{ flex: 1, backgroundColor: colors.bg }} />;
@@ -53,11 +55,10 @@ export default function AccountPromptScreen() {
           : null;
 
   const dismiss = () => {
-    if (variant === 'first-import') {
-      router.replace('/recipe/demo');
+    if (variant === 'first-import' && recipes[0]) {
+      router.replace(`/recipe/${recipes[recipes.length - 1].id}`);
       return;
     }
-    setHasRecipes(true);
     router.replace('/(tabs)');
   };
 
@@ -84,7 +85,7 @@ export default function AccountPromptScreen() {
             top: insets.top + 12,
             left: space[5],
             right: space[5],
-            zIndex: 2,
+            zIndex: 6,
             paddingVertical: space[3],
             paddingHorizontal: space[4],
             borderRadius: radius.lg,

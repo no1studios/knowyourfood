@@ -8,11 +8,19 @@ import { useTheme } from '@/components/ThemeProvider';
 import { AppHeader, Button, ListRow } from '@/components/ui';
 import { copy } from '@/lib/i18n/copy';
 
-/** Artboard 12 stub + demo entry points for guest prompt / merge variants. */
+/** Profile + local storage demo controls. */
 export default function ProfileScreen() {
   const { colors, type, space, radius, elevation } = useTheme();
-  const { locale, setLocale } = useLocale();
-  const { signedIn, setSignedIn, setHasRecipes } = useGuestSession();
+  const { locale } = useLocale();
+  const {
+    signedIn,
+    recipeCount,
+    snap,
+    setLocalePref,
+    seedDemoData,
+    resetGuestData,
+    showToast,
+  } = useGuestSession();
   const insets = useSafeAreaInsets();
   const c = copy(locale);
   const bottomPad = 12 + 72 + 24 + insets.bottom;
@@ -23,7 +31,8 @@ export default function ProfileScreen() {
         <AppHeader variant="large" title={c.nav.profile} />
         <View style={{ paddingHorizontal: space[5], gap: space[4] }}>
           <Text style={[type.body, { color: colors.inkMuted }]}>
-            Demo links for guest AccountPrompt / merge variants.
+            Guest store · {recipeCount} recipes · device {snap.deviceId.slice(0, 12)}…
+            {signedIn ? ' · signed in (local stub)' : ' · guest'}
           </Text>
 
           <View
@@ -38,7 +47,7 @@ export default function ProfileScreen() {
               title="App language"
               trailing={locale === 'hi' ? 'हिंदी' : 'EN'}
               chevron
-              onPress={() => setLocale(locale === 'hi' ? 'en' : 'hi')}
+              onPress={() => setLocalePref(locale === 'hi' ? 'en' : 'hi')}
             />
             <ListRow
               icon="phone"
@@ -46,6 +55,34 @@ export default function ProfileScreen() {
               title={c.ap.phone}
               chevron
               onPress={() => router.push('/auth/phone')}
+            />
+          </View>
+
+          <Text style={[type.overline, { color: colors.inkMuted }]}>LOCAL DATA</Text>
+          <View
+            style={[
+              { borderRadius: radius.lg, overflow: 'hidden', backgroundColor: colors.border, gap: 1 },
+              elevation[1],
+            ]}
+          >
+            <ListRow
+              title="Seed demo recipes + checklist"
+              subtitle="Optional sample data for walkthroughs"
+              chevron
+              onPress={async () => {
+                await seedDemoData();
+                showToast(locale === 'hi' ? 'डेमो डेटा लोड हो गया' : 'Demo data loaded');
+                router.replace('/(tabs)');
+              }}
+            />
+            <ListRow
+              title="Reset guest store"
+              subtitle="Clears recipes, checklist, prompts, session"
+              chevron
+              onPress={async () => {
+                await resetGuestData();
+                router.replace('/onboarding/language');
+              }}
             />
           </View>
 
@@ -57,21 +94,6 @@ export default function ProfileScreen() {
             ]}
           >
             <ListRow
-              title="A1 First save"
-              chevron
-              onPress={() => router.push('/account-prompt?variant=first-save')}
-            />
-            <ListRow
-              title="A2 First import"
-              chevron
-              onPress={() => router.push('/account-prompt?variant=first-import')}
-            />
-            <ListRow
-              title="A3 First share"
-              chevron
-              onPress={() => router.push('/account-prompt?variant=first-share')}
-            />
-            <ListRow
               title="A4 N recipes"
               chevron
               onPress={() => router.push('/account-prompt?variant=n-recipes')}
@@ -81,38 +103,10 @@ export default function ProfileScreen() {
               chevron
               onPress={() => router.push('/account-prompt?variant=unsynced-exit')}
             />
-          </View>
-
-          <Text style={[type.overline, { color: colors.inkMuted }]}>MERGE</Text>
-          <View
-            style={[
-              { borderRadius: radius.lg, overflow: 'hidden', backgroundColor: colors.border, gap: 1 },
-              elevation[1],
-            ]}
-          >
             <ListRow
-              title="C1 Keep all"
+              title="C1 Merge keep-all"
               chevron
               onPress={() => router.push('/merge?variant=keep-all')}
-            />
-            <ListRow
-              title="C2 Collision keep both"
-              chevron
-              onPress={() => router.push('/merge?variant=collision')}
-            />
-            <ListRow
-              title="C3 Guest-only skip"
-              chevron
-              onPress={() => router.push('/merge?variant=skip')}
-            />
-            <ListRow
-              title="C4 Signed-in confirm"
-              chevron
-              onPress={() => {
-                setHasRecipes(true);
-                setSignedIn(true);
-                router.push('/merge?variant=signed-in');
-              }}
             />
           </View>
 

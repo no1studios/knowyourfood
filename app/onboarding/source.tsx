@@ -14,19 +14,25 @@ import { copy } from '@/lib/i18n/copy';
 export default function OnboardingSource() {
   const { locale } = useLocale();
   const { colors, type, space, radius } = useTheme();
-  const { sources, toggleSource, setHasRecipes } = useGuestSession();
+  const { sources, toggleSource, completeOnboarding, importDemoRecipe } = useGuestSession();
   const insets = useSafeAreaInsets();
   const c = copy(locale);
   const [link, setLink] = useState('');
 
-  const finishEmpty = () => {
-    setHasRecipes(false);
+  const finishEmpty = async () => {
+    await completeOnboarding();
     router.replace('/(tabs)');
   };
 
-  const finishImported = () => {
-    setHasRecipes(true);
-    router.replace('/(tabs)');
+  const finishImported = async () => {
+    if (link.trim()) {
+      const { recipe, prompt } = await importDemoRecipe(link.trim());
+      if (prompt) router.replace(`/account-prompt?variant=${prompt}`);
+      else router.replace(`/recipe/${recipe.id}`);
+      return;
+    }
+    await completeOnboarding();
+    router.replace('/import');
   };
 
   return (
