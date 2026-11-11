@@ -45,6 +45,7 @@ export const en = {
     continueAsGuest: 'Continue as guest',
     continueWithGoogle: 'Continue with Google',
     continueWithApple: 'Continue with Apple',
+    mockMode: 'Auth mock mode (no live keys)',
   },
   accountPrompt: {
     title: 'Account prompt',

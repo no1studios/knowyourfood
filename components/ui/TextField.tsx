@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Text, TextInput, View } from 'react-native';
+import { Text, TextInput, View, type TextInputProps } from 'react-native';
 
 import { useTheme } from '@/components/ThemeProvider';
 
@@ -18,6 +18,9 @@ type Props = {
   multiline?: boolean;
   disabled?: boolean;
   onChangeText?: (text: string) => void;
+  keyboardType?: TextInputProps['keyboardType'];
+  autoComplete?: TextInputProps['autoComplete'];
+  textContentType?: TextInputProps['textContentType'];
 };
 
 export function TextField({
@@ -32,6 +35,9 @@ export function TextField({
   multiline,
   disabled,
   onChangeText,
+  keyboardType,
+  autoComplete,
+  textContentType,
 }: Props) {
   const { colors, type, radius, space, size, opacity } = useTheme();
   const search = variant === 'search';
@@ -60,6 +66,9 @@ export function TextField({
           placeholderTextColor={colors.inkSubtle}
           editable={!disabled}
           multiline={multiline}
+          keyboardType={keyboardType}
+          autoComplete={autoComplete}
+          textContentType={textContentType}
           style={[
             type.body,
             {

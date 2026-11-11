@@ -14,6 +14,7 @@ export default function ProfileScreen() {
   const { locale } = useLocale();
   const {
     signedIn,
+    authSession,
     recipeCount,
     snap,
     setLocalePref,
@@ -24,6 +25,9 @@ export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const c = copy(locale);
   const bottomPad = 12 + 72 + 24 + insets.bottom;
+  const authLabel = signedIn
+    ? ` · signed in (${authSession?.provider ?? 'account'})`
+    : ' · guest';
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
@@ -32,7 +36,7 @@ export default function ProfileScreen() {
         <View style={{ paddingHorizontal: space[5], gap: space[4] }}>
           <Text style={[type.body, { color: colors.inkMuted }]}>
             Guest store · {recipeCount} recipes · device {snap.deviceId.slice(0, 12)}…
-            {signedIn ? ' · signed in (local stub)' : ' · guest'}
+            {authLabel}
           </Text>
 
           <View

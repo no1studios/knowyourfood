@@ -8,10 +8,11 @@ Expo React Native app with locked DS theme tokens and a first UI slice matching 
 - My Recipes empty (04b) and guest home with hero (04)
 - Import (05), Recipe detail (06), Share sheet (06b), Auth phone + OTP (09 + guest continue-as-guest)
 - Guest AccountPrompt A1–A6, Merge C1–C4, Shopping checklist (08)
-- Guest local store (AsyncStorage): recipes, diet/sources, checklist, locale, prompt events, fake signed-in claim
+- Guest local store (AsyncStorage): recipes, diet/sources, checklist, locale, prompt events, signed-in claim
+- Auth client: Phone OTP (+91), Google SSO, Apple Sign-In (iOS) with config-gated mock when keys are missing
 - DS primitives: Button, Wordmark, FoodPhoto, RecipeCard, EmptyState, ShareSheet, ListRow, Modal, floating BottomNav, etc.
 
-Auth / API / PostHog remain stubs — no real OTP or SSO yet. Guest data persists on-device via AsyncStorage (`kyf.guest.v1`).
+Guest data persists on-device via AsyncStorage (`kyf.guest.v1`). Auth session persists via SecureStore / AsyncStorage (`kyf.auth.session.v1`). Vercel API / PostHog remain out of scope for this slice.
 
 ## Run
 
@@ -85,10 +86,23 @@ src/theme/           # Locked DS theme (kyf-theme.ts)
 
 English + Hindi via `i18n-js` (`lib/i18n.ts`). Chrome keys live in `lib/i18n/en.ts` and `lib/i18n/hi.ts`. Hindi placeholders are fine where locked copy is missing.
 
-## Explicit non-goals (scaffold)
+## Auth env (optional)
 
-- Real Phone OTP / SMS
-- Google or Apple Sign-In
-- Vercel API / Postgres / Blob
+Without these, the app runs in **mock auth** (OTP `123456`, simulated Google/Apple). See `features/auth/README.md`.
+
+| Variable | Purpose |
+|----------|---------|
+| `EXPO_PUBLIC_AUTH_API_URL` | Verify API base (`/auth/otp/start\|verify`, `/auth/oauth/{google\|apple}`) |
+| `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` | Google OAuth web / Expo client ID |
+| `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID` | iOS Google client ID |
+| `EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID` | Android Google client ID |
+| `EXPO_PUBLIC_AUTH_MOCK` | Force mock (`true`) |
+| `EXPO_PUBLIC_AUTH_MOCK_OTP` | Mock SMS code (default `123456`) |
+
+Copy `.env.example` → `.env.local` for local keys. Do not commit secrets.
+
+## Explicit non-goals (this slice)
+
+- Vercel API / Postgres / Blob implementation
 - PostHog
-- Full DS component port (Button, RecipeCard, …) — use stubs until a UI implementation pass
+- Shopping integrations / Phase 1.5 social

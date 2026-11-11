@@ -10,6 +10,7 @@ import {
 
 import type { Diet } from '@/components/ui';
 import { useLocale } from '@/components/LocaleProvider';
+import { authClient, type AuthSession } from '@/features/auth';
 import { setLocale as setI18nLocale, type AppLocale } from '@/lib/i18n';
 import {
   activeRecipes,
@@ -41,6 +42,7 @@ type GuestSessionValue = {
   hasRecipes: boolean;
   recipeCount: number;
   signedIn: boolean;
+  authSession: AuthSession | null;
   toast: string | null;
   toggleDiet: (diet: Diet) => void;
   toggleSource: (key: SourceKey) => void;
@@ -49,6 +51,8 @@ type GuestSessionValue = {
   /** Seeds one recipe when true, clears when false — prefer explicit helpers. */
   setHasRecipes: (value: boolean) => void;
   setSignedIn: (value: boolean) => void;
+  /** Persist auth session and mirror signed-in onto the guest store. */
+  applyAuthSession: (session: AuthSession) => Promise<void>;
   showToast: (message: string | null) => void;
   seedDemoData: () => Promise<void>;
   resetGuestData: () => Promise<void>;
@@ -73,16 +77,29 @@ function GuestSessionInner({ children }: { children: ReactNode }) {
   const { setLocale } = useLocale();
   const [ready, setReady] = useState(false);
   const [snap, setSnap] = useState<GuestStoreSnapshot>(() => createEmptySnapshot());
+  const [authSession, setAuthSession] = useState<AuthSession | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
   useEffect(() => {
     let alive = true;
     (async () => {
-      const loaded = await guestStore.load();
+      const [loaded, session] = await Promise.all([guestStore.load(), authClient.getSession()]);
       if (!alive) return;
       setI18nLocale(loaded.locale);
       setLocale(loaded.locale);
-      setSnap(loaded);
+      setAuthSession(session);
+
+      let next = loaded;
+      const signed = Boolean(session && !session.isGuest);
+      if (signed !== loaded.signedIn) {
+        next = {
+          ...loaded,
+          signedIn: signed,
+          claimedAt: signed ? loaded.claimedAt || nowIso() : null,
+        };
+        await guestStore.save(next);
+      }
+      setSnap(next);
       setReady(true);
     })().catch((err) => {
       console.warn('Guest store load failed', err);
@@ -121,6 +138,7 @@ function GuestSessionInner({ children }: { children: ReactNode }) {
       hasRecipes: recipeCount > 0,
       recipeCount,
       signedIn: snap.signedIn,
+      authSession,
       toast,
       toggleDiet: (diet) => {
         void mutate((s) => ({ ...s, diets: { ...s.diets, [diet]: !s.diets[diet] } }));
@@ -164,6 +182,19 @@ function GuestSessionInner({ children }: { children: ReactNode }) {
           claimedAt: value ? s.claimedAt || nowIso() : null,
         }));
       },
+      applyAuthSession: async (session) => {
+        setAuthSession(session);
+        if (session.isGuest) {
+          await authClient.continueAsGuest();
+          await mutate((s) => ({ ...s, signedIn: false }));
+          return;
+        }
+        await mutate((s) => ({
+          ...s,
+          signedIn: true,
+          claimedAt: s.claimedAt || nowIso(),
+        }));
+      },
       showToast: setToast,
       seedDemoData: async () => {
         await mutate((s) => {
@@ -180,10 +211,12 @@ function GuestSessionInner({ children }: { children: ReactNode }) {
         });
       },
       resetGuestData: async () => {
+        await authClient.signOut();
         const fresh = await guestStore.clear();
         setI18nLocale(fresh.locale);
         setLocale(fresh.locale);
         setSnap(fresh);
+        setAuthSession(await authClient.getSession());
         setToast(null);
       },
       importDemoRecipe: async (link) => {
@@ -313,7 +346,7 @@ function GuestSessionInner({ children }: { children: ReactNode }) {
         await mutate((s) => markPrompt(s, kind));
       },
     }),
-    [ready, snap, recipes, recipeCount, toast, mutate, setLocale],
+    [ready, snap, recipes, recipeCount, authSession, toast, mutate, setLocale],
   );
 
   return <GuestSessionContext.Provider value={value}>{children}</GuestSessionContext.Provider>;

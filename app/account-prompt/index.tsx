@@ -19,18 +19,22 @@ export default function AccountPromptScreen() {
   const { locale } = useLocale();
   const { colors, type, radius, space } = useTheme();
   const insets = useSafeAreaInsets();
-  const { recipes, notePromptShown, seedDemoData } = useGuestSession();
+  const { recipes, notePromptShown, seedDemoData, signedIn } = useGuestSession();
   const c = copy(locale);
 
   useEffect(() => {
+    if (signedIn) {
+      router.replace('/(tabs)');
+      return;
+    }
     if (variant === 'banner-quiet') {
       void seedDemoData().then(() => router.replace('/(tabs)'));
       return;
     }
     void notePromptShown(variant);
-  }, [variant, notePromptShown, seedDemoData]);
+  }, [variant, notePromptShown, seedDemoData, signedIn]);
 
-  if (variant === 'banner-quiet') {
+  if (signedIn || variant === 'banner-quiet') {
     return <View style={{ flex: 1, backgroundColor: colors.bg }} />;
   }
 
