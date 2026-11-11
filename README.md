@@ -12,7 +12,7 @@ Expo React Native app with locked DS theme tokens and a first UI slice matching 
 - Auth client: Phone OTP (+91), Google SSO, Apple Sign-In (iOS) with config-gated mock when keys are missing
 - DS primitives: Button, Wordmark, FoodPhoto, RecipeCard, EmptyState, ShareSheet, ListRow, Modal, floating BottomNav, etc.
 
-Guest data persists on-device via AsyncStorage (`kyf.guest.v1`). Auth session persists via SecureStore / AsyncStorage (`kyf.auth.session.v1`). Vercel API / PostHog remain out of scope for this slice.
+Guest data persists on-device via AsyncStorage (`kyf.guest.v1`). Auth session persists via SecureStore / AsyncStorage (`kyf.auth.session.v1`). Auth API lives in **`apps/api`** (Next.js on Vercel). PostHog remains out of scope for this slice.
 
 ## Run
 
@@ -57,10 +57,28 @@ Key locked visuals:
 
 ```
 app/                 # Expo Router routes (onboarding, tabs, recipe, import, auth, …)
+apps/api/            # Next.js App Router API — Vercel Root Directory = apps/api
 components/          # BottomNav, StubScreen, ThemeProvider
 features/            # recipes, import, auth, shopping, share barrels
 lib/                 # i18n, api/db/auth/analytics stubs
 src/theme/           # Locked DS theme (kyf-theme.ts)
+```
+
+## Vercel API (`apps/api`)
+
+Import the repo in Vercel with **Root Directory `apps/api`** (Framework: Next.js). See [`apps/api/README.md`](./apps/api/README.md) for env vars, mock OTP (`123456`), and health check.
+
+Local API:
+
+```bash
+cd apps/api && npm install && npm run dev
+# http://localhost:3000/api/health
+```
+
+Point Expo at a deployment (include `/api`):
+
+```bash
+EXPO_PUBLIC_AUTH_API_URL=https://<deployment>.vercel.app/api
 ```
 
 ## Navigation map (stubs)
@@ -92,7 +110,7 @@ Without these, the app runs in **mock auth** (OTP `123456`, simulated Google/App
 
 | Variable | Purpose |
 |----------|---------|
-| `EXPO_PUBLIC_AUTH_API_URL` | Verify API base (`/auth/otp/start\|verify`, `/auth/oauth/{google\|apple}`) |
+| `EXPO_PUBLIC_AUTH_API_URL` | API base ending in `/api` (e.g. `https://….vercel.app/api`) — client appends `/auth/otp/…` |
 | `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` | Google OAuth web / Expo client ID |
 | `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID` | iOS Google client ID |
 | `EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID` | Android Google client ID |
@@ -103,6 +121,6 @@ Copy `.env.example` → `.env.local` for local keys. Do not commit secrets.
 
 ## Explicit non-goals (this slice)
 
-- Vercel API / Postgres / Blob implementation
+- Real SMS / live OAuth token verify / Postgres migrations (API is mock-ready stubs)
 - PostHog
 - Shopping integrations / Phase 1.5 social

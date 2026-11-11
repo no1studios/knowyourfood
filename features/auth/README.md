@@ -8,7 +8,7 @@ Without live credentials the UI still runs via a **config-gated mock** (no crash
 
 | Variable | Purpose |
 |----------|---------|
-| `EXPO_PUBLIC_AUTH_API_URL` | Base URL for Verify API (`POST /auth/otp/start`, `/auth/otp/verify`, `/auth/oauth/google`, `/auth/oauth/apple`) |
+| `EXPO_PUBLIC_AUTH_API_URL` | Base URL ending in `/api` (Vercel: `https://….vercel.app/api` — see `apps/api/README.md`). Client calls `{base}/auth/otp/start`, `/auth/otp/verify`, `/auth/oauth/google\|apple`. |
 | `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` | Google OAuth web / Expo client ID |
 | `EXPO_PUBLIC_GOOGLE_CLIENT_ID` | Alias for web client ID |
 | `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID` | iOS Google client ID |
