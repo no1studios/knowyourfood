@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -16,7 +16,7 @@ import {
 } from '@/features/auth';
 import { copy } from '@/lib/i18n/copy';
 
-/** Artboard 09 / guest B2 — OTP 6 digit cells */
+/** Artboard 09 / guest B2 — OTP 6 digit cells; auto-verify when complete. */
 export default function AuthOtpScreen() {
   const {
     verificationId = '',
@@ -42,6 +42,7 @@ export default function AuthOtpScreen() {
   const [seconds, setSeconds] = useState(24);
   const [activeVerificationId, setActiveVerificationId] = useState(verificationId);
   const inputs = useRef<Array<{ focus: () => void } | null>>([null, null, null, null, null, null]);
+  const verifyingRef = useRef(false);
 
   useEffect(() => {
     setActiveVerificationId(verificationId);
@@ -62,7 +63,54 @@ export default function AuthOtpScreen() {
     setFocusIndex(index);
   };
 
+  const verify = useCallback(
+    async (codeOverride?: string) => {
+      const code = (codeOverride ?? digits.join('')).replace(/\D/g, '');
+      if (code.length !== 6) {
+        setError(c.otp.incomplete);
+        return;
+      }
+      if (!activeVerificationId) {
+        setError(c.auth.errorGeneric);
+        return;
+      }
+      if (verifyingRef.current) return;
+      verifyingRef.current = true;
+      setBusy(true);
+      setError(null);
+      try {
+        const session = await authClient.verifyPhoneOtp({
+          verificationId: activeVerificationId,
+          code,
+          phoneE164: phoneE164 || undefined,
+        });
+        await applyAuthSession(session);
+        router.replace(mergeHrefAfterAuth('keep-all'));
+      } catch (err) {
+        const message =
+          err instanceof AuthError
+            ? err.message
+            : err instanceof Error
+              ? err.message
+              : c.auth.errorGeneric;
+        setError(message);
+        // Keep digits editable so the user can fix / resend
+        verifyingRef.current = false;
+        setBusy(false);
+      }
+    },
+    [
+      activeVerificationId,
+      applyAuthSession,
+      c.auth.errorGeneric,
+      c.otp.incomplete,
+      digits,
+      phoneE164,
+    ],
+  );
+
   const setDigit = (index: number, value: string) => {
+    if (verifyingRef.current) return;
     const clean = value.replace(/\D/g, '');
     if (clean.length > 1) {
       const chars = clean.slice(0, 6).split('');
@@ -73,58 +121,36 @@ export default function AuthOtpScreen() {
       setDigits(next);
       focusAt(Math.min(chars.length, 5));
       setError(null);
+      if (chars.length === 6) {
+        void verify(chars.join(''));
+      }
       return;
     }
     const next = [...digits];
     next[index] = clean.slice(-1);
     setDigits(next);
     setError(null);
-    if (clean && index < 5) focusAt(index + 1);
+    if (clean && index < 5) {
+      focusAt(index + 1);
+    }
+    const code = next.join('');
+    if (code.length === 6 && !next.some((d) => !d)) {
+      void verify(code);
+    }
   };
 
   const phoneLabel = phoneE164 ? formatPhoneDisplay(phoneE164) : c.auth.phoneValue;
 
-  const verify = async () => {
-    const code = digits.join('');
-    if (code.length !== 6) {
-      setError(c.otp.incomplete);
-      return;
-    }
-    if (!activeVerificationId) {
-      setError(c.auth.errorGeneric);
-      return;
-    }
-    setBusy(true);
-    setError(null);
-    try {
-      const session = await authClient.verifyPhoneOtp({
-        verificationId: activeVerificationId,
-        code,
-        phoneE164: phoneE164 || undefined,
-      });
-      await applyAuthSession(session);
-      router.replace(mergeHrefAfterAuth('keep-all'));
-    } catch (err) {
-      const message =
-        err instanceof AuthError
-          ? err.message
-          : err instanceof Error
-            ? err.message
-            : c.auth.errorGeneric;
-      setError(message);
-    } finally {
-      setBusy(false);
-    }
-  };
-
   const resend = async () => {
-    if (!phoneE164 || seconds > 0) return;
+    if (!phoneE164 || seconds > 0 || verifyingRef.current) return;
     setError(null);
     try {
       const started = await authClient.startPhoneOtp({ phoneE164 });
       setActiveVerificationId(started.verificationId);
       setSeconds(24);
       setDigits(['', '', '', '', '', '']);
+      verifyingRef.current = false;
+      setBusy(false);
       focusAt(0);
     } catch (err) {
       const message =
@@ -201,6 +227,7 @@ export default function AuthOtpScreen() {
                       inputs.current[i] = el as { focus: () => void } | null;
                     }}
                     value={d}
+                    editable={!busy}
                     onChangeText={(v) => setDigit(i, v)}
                     onKeyPress={({ nativeEvent }) => {
                       if (nativeEvent.key === 'Backspace' && !digits[i] && i > 0) {
@@ -227,7 +254,7 @@ export default function AuthOtpScreen() {
               );
             })}
           </View>
-          <Pressable onPress={() => void resend()} disabled={seconds > 0}>
+          <Pressable onPress={() => void resend()} disabled={seconds > 0 || busy}>
             <Text style={[type.caption, { color: colors.inkMuted }]}>
               {seconds > 0
                 ? c.otp.helperCountdown(`0:${seconds.toString().padStart(2, '0')}`)
