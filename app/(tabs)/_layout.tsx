@@ -1,11 +1,14 @@
 import { Tabs } from 'expo-router';
 
 import { BottomNav } from '@/components/BottomNav';
+import { useLocale } from '@/components/LocaleProvider';
 import { useTheme } from '@/components/ThemeProvider';
-import { t } from '@/lib/i18n';
+import { copy } from '@/lib/i18n/copy';
 
 export default function TabLayout() {
   const { colors } = useTheme();
+  const { locale } = useLocale();
+  const c = copy(locale);
 
   return (
     <Tabs
@@ -15,9 +18,10 @@ export default function TabLayout() {
         sceneStyle: { backgroundColor: colors.bg },
       }}
     >
-      <Tabs.Screen name="index" options={{ title: t('nav.recipes') }} />
-      <Tabs.Screen name="checklist" options={{ title: t('nav.checklist') }} />
-      <Tabs.Screen name="profile" options={{ title: t('nav.profile') }} />
+      <Tabs.Screen name="index" options={{ title: c.nav.recipes }} />
+      <Tabs.Screen name="search" options={{ title: c.nav.search }} />
+      <Tabs.Screen name="checklist" options={{ title: c.nav.list }} />
+      <Tabs.Screen name="profile" options={{ title: c.nav.profile }} />
     </Tabs>
   );
 }

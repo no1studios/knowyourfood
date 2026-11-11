@@ -20,6 +20,7 @@ import { Platform, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 
+import { GuestSessionProvider } from '@/components/GuestSession';
 import { ThemeProvider, useTheme } from '@/components/ThemeProvider';
 import { lightColors } from '@/src/theme';
 
@@ -70,7 +71,9 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider>
-      <RootNavigator />
+      <GuestSessionProvider>
+        <RootNavigator />
+      </GuestSessionProvider>
     </ThemeProvider>
   );
 }

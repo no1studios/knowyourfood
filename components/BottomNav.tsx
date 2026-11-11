@@ -1,8 +1,11 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useLocale } from '@/components/LocaleProvider';
 import { useTheme } from '@/components/ThemeProvider';
-import { t } from '@/lib/i18n';
+import { Icon } from '@/components/ui';
+import type { IconName } from '@/components/ui';
+import { copy } from '@/lib/i18n/copy';
 
 type TabRoute = { key: string; name: string; params?: object };
 
@@ -20,6 +23,13 @@ type BottomNavProps = {
   };
 };
 
+const ICONS: Record<string, IconName> = {
+  index: 'book',
+  search: 'search',
+  checklist: 'cart',
+  profile: 'user',
+};
+
 /**
  * Floating pill BottomNav from MVP v2 frames (not docked DS CSS alone).
  * Inset: left/right/bottom 12, radius-full, shadow-3; active primary-soft pill.
@@ -27,11 +37,14 @@ type BottomNavProps = {
 export function BottomNav({ state, descriptors, navigation, navigateToTab }: BottomNavProps) {
   const { colors, type, radius, space, elevation, size } = useTheme();
   const insets = useSafeAreaInsets();
+  const { locale } = useLocale();
+  const c = copy(locale);
 
   const labels: Record<string, string> = {
-    index: t('nav.recipes'),
-    checklist: t('nav.checklist'),
-    profile: t('nav.profile'),
+    index: c.nav.recipes,
+    search: c.nav.search,
+    checklist: c.nav.list,
+    profile: c.nav.profile,
   };
 
   return (
@@ -54,6 +67,7 @@ export function BottomNav({ state, descriptors, navigation, navigateToTab }: Bot
             borderRadius: radius.full,
             minHeight: size['nav-height'] - 8,
             paddingHorizontal: space[2],
+            paddingVertical: space[1],
           },
         ]}
       >
@@ -61,6 +75,7 @@ export function BottomNav({ state, descriptors, navigation, navigateToTab }: Bot
           const focused = state.index === index;
           const { options } = descriptors[route.key];
           const label = labels[route.name] ?? options.title ?? route.name;
+          const icon = ICONS[route.name] ?? 'more';
 
           const onPress = () => {
             if (navigateToTab) {
@@ -90,19 +105,22 @@ export function BottomNav({ state, descriptors, navigation, navigateToTab }: Bot
                   backgroundColor: focused ? colors.primarySoft : 'transparent',
                   borderRadius: radius.full,
                   opacity: pressed ? 0.88 : 1,
-                  paddingHorizontal: space[3],
+                  paddingHorizontal: space[2],
                   paddingVertical: space[2],
+                  gap: 2,
                 },
               ]}
             >
+              <Icon name={icon} size={22} color={focused ? colors.ink : colors.inkMuted} />
               <Text
                 style={[
                   type.caption,
                   {
-                    color: focused ? colors.onPrimarySoft : colors.inkMuted,
+                    color: focused ? colors.ink : colors.inkMuted,
                     fontFamily: type.label.fontFamily,
                   },
                 ]}
+                numberOfLines={1}
               >
                 {label}
               </Text>
