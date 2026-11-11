@@ -6,9 +6,16 @@ import { useGuestSession } from '@/components/GuestSession';
 import { useLocale } from '@/components/LocaleProvider';
 import { useTheme } from '@/components/ThemeProvider';
 import { AppHeader, Button, ListRow } from '@/components/ui';
+import type { AuthSession } from '@/features/auth';
 import { copy } from '@/lib/i18n/copy';
 
-/** Profile + local storage demo controls. */
+/** True when guest-store flag OR persisted auth session says signed in. */
+function resolveSignedIn(signedIn: boolean, authSession: AuthSession | null) {
+  if (signedIn) return true;
+  return Boolean(authSession && !authSession.isGuest);
+}
+
+/** Profile — account / Sign out when signed in; phone CTA only when guest. */
 export default function ProfileScreen() {
   const { colors, type, space, radius, elevation } = useTheme();
   const { locale } = useLocale();
@@ -26,16 +33,21 @@ export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const c = copy(locale);
   const bottomPad = 12 + 72 + 24 + insets.bottom;
-  const authLabel = signedIn
-    ? ` · signed in (${authSession?.provider ?? 'account'})`
+
+  // Drive menu from the same session signal as the status line (and auth store).
+  const isSignedIn = resolveSignedIn(signedIn, authSession);
+  const provider = authSession?.provider;
+
+  const authLabel = isSignedIn
+    ? ` · signed in (${provider && provider !== 'guest' ? provider : 'account'})`
     : ' · guest';
 
   const accountTitle =
-    authSession?.provider === 'phone'
+    provider === 'phone'
       ? c.auth.accountPhone
-      : authSession?.provider === 'google'
+      : provider === 'google'
         ? c.auth.accountGoogle
-        : authSession?.provider === 'apple'
+        : provider === 'apple'
           ? c.auth.accountApple
           : c.auth.accountGeneric;
 
@@ -44,6 +56,11 @@ export default function ProfileScreen() {
     authSession?.email ||
     authSession?.displayName ||
     undefined;
+
+  const onSignOut = async () => {
+    await signOut();
+    showToast(c.auth.signedOutToast);
+  };
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
@@ -69,26 +86,8 @@ export default function ProfileScreen() {
               chevron
               onPress={() => setLocalePref(locale === 'hi' ? 'en' : 'hi')}
             />
-            {signedIn ? (
-              <>
-                <ListRow
-                  icon="user"
-                  iconTone="mint"
-                  title={accountTitle}
-                  subtitle={accountSubtitle}
-                />
-                <ListRow
-                  icon="close"
-                  iconTone="rose"
-                  title={c.auth.signOut}
-                  subtitle={c.auth.signOutHint}
-                  onPress={async () => {
-                    await signOut();
-                    showToast(c.auth.signedOutToast);
-                  }}
-                />
-              </>
-            ) : (
+            {/* Guest-only: never show phone CTA while signed in */}
+            {!isSignedIn ? (
               <ListRow
                 icon="phone"
                 iconTone="haldi"
@@ -96,8 +95,38 @@ export default function ProfileScreen() {
                 chevron
                 onPress={() => router.push('/auth/phone')}
               />
-            )}
+            ) : null}
           </View>
+
+          {isSignedIn ? (
+            <View style={{ gap: space[3] }}>
+              <Text style={[type.overline, { color: colors.inkMuted }]}>
+                {locale === 'hi' ? 'खाता' : 'ACCOUNT'}
+              </Text>
+              <View
+                style={[
+                  {
+                    borderRadius: radius.lg,
+                    overflow: 'hidden',
+                    backgroundColor: colors.border,
+                    gap: 1,
+                  },
+                  elevation[1],
+                ]}
+              >
+                <ListRow
+                  icon="user"
+                  iconTone="mint"
+                  title={accountTitle}
+                  subtitle={accountSubtitle}
+                />
+              </View>
+              <Button variant="secondary" block onPress={() => void onSignOut()}>
+                {c.auth.signOut}
+              </Button>
+              <Text style={[type.caption, { color: colors.inkMuted }]}>{c.auth.signOutHint}</Text>
+            </View>
+          ) : null}
 
           <Text style={[type.overline, { color: colors.inkMuted }]}>LOCAL DATA</Text>
           <View
@@ -151,7 +180,7 @@ export default function ProfileScreen() {
             />
           </View>
 
-          {!signedIn ? (
+          {!isSignedIn ? (
             <Button
               variant="secondary"
               block

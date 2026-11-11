@@ -148,7 +148,9 @@ function GuestSessionInner({ children }: { children: ReactNode }) {
       sources: snap.sources,
       hasRecipes: recipeCount > 0,
       recipeCount,
-      signedIn: snap.signedIn,
+      // Prefer store flag; also treat a non-guest auth session as signed in
+      // so Profile/menu can't diverge from the status line after HMR/partial hydration.
+      signedIn: Boolean(snap.signedIn || (authSession && !authSession.isGuest)),
       authSession,
       toast,
       toggleDiet: (diet) => {
