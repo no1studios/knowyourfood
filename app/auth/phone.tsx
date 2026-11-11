@@ -14,7 +14,7 @@ export default function AuthPhoneScreen() {
   const { locale } = useLocale();
   const { colors, type, space, radius } = useTheme();
   const insets = useSafeAreaInsets();
-  const { setHasRecipes, showToast } = useGuestSession();
+  const { showToast, completeOnboarding } = useGuestSession();
   const c = copy(locale);
   const [phone, setPhone] = useState(c.auth.phoneValue);
 
@@ -66,8 +66,8 @@ export default function AuthPhoneScreen() {
           <Button
             variant="ghost"
             block
-            onPress={() => {
-              setHasRecipes(true);
+            onPress={async () => {
+              await completeOnboarding();
               showToast(c.home.guestToast);
               router.replace('/(tabs)');
             }}

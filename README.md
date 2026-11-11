@@ -8,9 +8,10 @@ Expo React Native app with locked DS theme tokens and a first UI slice matching 
 - My Recipes empty (04b) and guest home with hero (04)
 - Import (05), Recipe detail (06), Share sheet (06b), Auth phone + OTP (09 + guest continue-as-guest)
 - Guest AccountPrompt A1–A6, Merge C1–C4, Shopping checklist (08)
+- Guest local store (AsyncStorage): recipes, diet/sources, checklist, locale, prompt events, fake signed-in claim
 - DS primitives: Button, Wordmark, FoodPhoto, RecipeCard, EmptyState, ShareSheet, ListRow, Modal, floating BottomNav, etc.
 
-Auth / API / PostHog remain stubs — no real OTP or SSO yet.
+Auth / API / PostHog remain stubs — no real OTP or SSO yet. Guest data persists on-device via AsyncStorage (`kyf.guest.v1`).
 
 ## Run
 

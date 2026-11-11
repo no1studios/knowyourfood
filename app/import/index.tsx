@@ -14,10 +14,11 @@ import { copy } from '@/lib/i18n/copy';
 export default function ImportScreen() {
   const { locale } = useLocale();
   const { colors, type, space, radius, elevation } = useTheme();
-  const { setHasRecipes } = useGuestSession();
+  const { importDemoRecipe } = useGuestSession();
   const insets = useSafeAreaInsets();
   const c = copy(locale);
   const [link, setLink] = useState(c.imp.linkValue);
+  const [saving, setSaving] = useState(false);
 
   const toneBg = {
     mint: colors.pastelMint,
@@ -118,9 +119,19 @@ export default function ImportScreen() {
           size="lg"
           block
           icon="bookmark"
-          onPress={() => {
-            setHasRecipes(true);
-            router.push('/account-prompt?variant=first-import');
+          loading={saving}
+          onPress={async () => {
+            setSaving(true);
+            try {
+              const { recipe, prompt } = await importDemoRecipe(link);
+              if (prompt) {
+                router.replace(`/account-prompt?variant=${prompt}`);
+              } else {
+                router.replace(`/recipe/${recipe.id}`);
+              }
+            } finally {
+              setSaving(false);
+            }
           }}
         >
           {c.imp.cta}

@@ -1,4 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
+import { useState } from 'react';
 import { Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -9,14 +10,15 @@ import { Button, FoodPhoto, IconButton } from '@/components/ui';
 import { FloatingCta } from '@/components/ui/FloatingCta';
 import { copy } from '@/lib/i18n/copy';
 
-/** Artboard 13 — Shared recipe preview (guest A1 backdrop). */
+/** Artboard 13 — Shared recipe preview; save writes guest store + first-save prompt. */
 export default function SharedPreviewScreen() {
   const { slug } = useLocalSearchParams<{ slug: string }>();
   const { locale } = useLocale();
   const { colors, type, radius, space } = useTheme();
   const insets = useSafeAreaInsets();
-  const { setHasRecipes } = useGuestSession();
+  const { saveSharedRecipe } = useGuestSession();
   const c = copy(locale);
+  const [saving, setSaving] = useState(false);
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
@@ -57,9 +59,16 @@ export default function SharedPreviewScreen() {
           size="lg"
           block
           icon="bookmark"
-          onPress={() => {
-            setHasRecipes(true);
-            router.push('/account-prompt?variant=first-save');
+          loading={saving}
+          onPress={async () => {
+            setSaving(true);
+            try {
+              const { recipe, prompt } = await saveSharedRecipe();
+              if (prompt) router.replace(`/account-prompt?variant=${prompt}`);
+              else router.replace(`/recipe/${recipe.id}`);
+            } finally {
+              setSaving(false);
+            }
           }}
         >
           {c.shared.cta}

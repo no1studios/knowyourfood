@@ -1,9 +1,21 @@
 import { Redirect } from 'expo-router';
+import { View } from 'react-native';
 
-/**
- * Entry: send new installs through onboarding.
- * Later this can gate on SecureStore / onboarding_complete.
- */
+import { useGuestSession } from '@/components/GuestSession';
+import { useTheme } from '@/components/ThemeProvider';
+
+/** Entry: onboarding once, then My recipes (empty or populated from local guest store). */
 export default function Index() {
-  return <Redirect href="/onboarding/language" />;
+  const { ready, snap } = useGuestSession();
+  const { colors } = useTheme();
+
+  if (!ready) {
+    return <View style={{ flex: 1, backgroundColor: colors.bg }} />;
+  }
+
+  if (!snap.onboardingComplete) {
+    return <Redirect href="/onboarding/language" />;
+  }
+
+  return <Redirect href="/(tabs)" />;
 }

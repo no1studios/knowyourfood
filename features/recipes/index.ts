@@ -1,2 +1,3 @@
-/** Recipe feature barrel — scaffold only. */
-export type { RecipeDraft } from '@/lib/api';
+/** Recipe feature — guest-local helpers. */
+export type { GuestRecipe } from '@/lib/guest-store';
+export { activeRecipes, buildDemoRecipes, buildImportedDal } from '@/lib/guest-store';

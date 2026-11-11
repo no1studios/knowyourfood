@@ -1,21 +1,27 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { Text, View } from 'react-native';
 
+import { useGuestSession } from '@/components/GuestSession';
 import { useLocale } from '@/components/LocaleProvider';
 import { useTheme } from '@/components/ThemeProvider';
 import { FoodPhoto, ShareSheet } from '@/components/ui';
 import { copy } from '@/lib/i18n/copy';
+import { buildDemoRecipes } from '@/lib/guest-store';
 
-/** Artboard 06b — Recipe detail + ShareSheet open */
+/** Artboard 06b — Share sheet; first share triggers AccountPrompt. */
 export default function RecipeShareScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { locale } = useLocale();
   const { colors, type, radius, space } = useTheme();
+  const { getRecipe, recordShare, addIngredientsToList } = useGuestSession();
   const c = copy(locale);
+  const hi = locale === 'hi';
+  const recipe = (id && getRecipe(id)) || buildDemoRecipes()[0];
+  const title = hi && recipe.titleHi ? recipe.titleHi : recipe.title;
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <FoodPhoto art="bowl" tone="haldi" ratio="360/360" />
+      <FoodPhoto art={recipe.art} tone={recipe.tone} ratio="360/360" />
       <View
         style={{
           marginTop: -24,
@@ -25,7 +31,7 @@ export default function RecipeShareScreen() {
           padding: space[5],
         }}
       >
-        <Text style={[type['title-1'], { color: colors.ink }]}>{c.det.title}</Text>
+        <Text style={[type['title-1'], { color: colors.ink }]}>{title}</Text>
       </View>
 
       <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 6 }}>
@@ -33,19 +39,23 @@ export default function RecipeShareScreen() {
           inline
           title={c.share.title}
           recipe={{
-            title: c.det.title,
-            subtitle: c.share.subtitle,
-            art: 'bowl',
-            tone: 'haldi',
+            title,
+            subtitle: `knowyourfood.app/r/${recipe.id.replace(/^recipe_/, '')}`,
+            art: recipe.art,
+            tone: recipe.tone,
           }}
           targets={c.share.targets}
           options={c.share.options}
           onClose={() => router.back()}
-          onSelectTarget={() => {
-            // Stub: WhatsApp-first share succeeds, then AccountPrompt A3
-            router.replace('/account-prompt?variant=first-share');
+          onSelectTarget={async () => {
+            const prompt = await recordShare(recipe.id);
+            if (prompt) router.replace(`/account-prompt?variant=${prompt}`);
+            else router.replace(`/recipe/${recipe.id}`);
           }}
-          onSelectOption={() => router.replace('/(tabs)/checklist')}
+          onSelectOption={async () => {
+            await addIngredientsToList(recipe.id);
+            router.replace('/(tabs)/checklist');
+          }}
         />
       </View>
     </View>
