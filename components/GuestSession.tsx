@@ -8,9 +8,13 @@ type GuestSessionValue = {
   diets: Record<Diet, boolean>;
   sources: Record<SourceKey, boolean>;
   hasRecipes: boolean;
+  signedIn: boolean;
+  toast: string | null;
   toggleDiet: (diet: Diet) => void;
   toggleSource: (key: SourceKey) => void;
   setHasRecipes: (value: boolean) => void;
+  setSignedIn: (value: boolean) => void;
+  showToast: (message: string | null) => void;
 };
 
 const GuestSessionContext = createContext<GuestSessionValue | null>(null);
@@ -36,17 +40,23 @@ export function GuestSessionProvider({ children }: { children: ReactNode }) {
   const [diets, setDiets] = useState(DEFAULT_DIETS);
   const [sources, setSources] = useState(DEFAULT_SOURCES);
   const [hasRecipes, setHasRecipes] = useState(false);
+  const [signedIn, setSignedIn] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
 
   const value = useMemo<GuestSessionValue>(
     () => ({
       diets,
       sources,
       hasRecipes,
+      signedIn,
+      toast,
       toggleDiet: (diet) => setDiets((prev) => ({ ...prev, [diet]: !prev[diet] })),
       toggleSource: (key) => setSources((prev) => ({ ...prev, [key]: !prev[key] })),
       setHasRecipes,
+      setSignedIn,
+      showToast: setToast,
     }),
-    [diets, sources, hasRecipes],
+    [diets, sources, hasRecipes, signedIn, toast],
   );
 
   return <GuestSessionContext.Provider value={value}>{children}</GuestSessionContext.Provider>;

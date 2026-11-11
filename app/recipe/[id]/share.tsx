@@ -42,10 +42,10 @@ export default function RecipeShareScreen() {
           options={c.share.options}
           onClose={() => router.back()}
           onSelectTarget={() => {
-            // Stub: WhatsApp-first share — no third-party logos; navigate back for now
-            router.replace(`/recipe/${id}`);
+            // Stub: WhatsApp-first share succeeds, then AccountPrompt A3
+            router.replace('/account-prompt?variant=first-share');
           }}
-          onSelectOption={() => router.replace(`/(tabs)/checklist`)}
+          onSelectOption={() => router.replace('/(tabs)/checklist')}
         />
       </View>
     </View>

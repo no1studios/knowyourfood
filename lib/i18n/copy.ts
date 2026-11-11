@@ -145,10 +145,15 @@ export function copy(locale: AppLocale) {
         },
       ],
       banner: {
-        title: x('Back up your recipes', 'अपनी रेसिपी का बैकअप लें'),
-        body: x('12 recipes saved only on this phone', '12 रेसिपी सिर्फ़ इस फ़ोन पर हैं'),
-        primary: x('Sign up', 'साइन अप करें'),
+        title: x('Back up your 12 recipes', 'अपनी 12 रेसिपी का बैकअप लें'),
+        body: x('Saved on this phone only', 'अभी सिर्फ़ इस फ़ोन पर सहेजी हैं'),
+        primary: x('Sign in', 'साइन इन करें'),
       },
+      synced: x('Synced', 'सिंक हो गया'),
+      guestToast: x(
+        'You’re cooking as a guest. Your recipes stay on this phone.',
+        'आप मेहमान के रूप में जारी हैं। आपकी रेसिपी इसी फ़ोन पर रहेंगी।',
+      ),
     },
     empty: {
       eyebrow: x('Welcome to', 'आपका स्वागत है'),
@@ -281,6 +286,177 @@ export function copy(locale: AppLocale) {
       helper: x('Resend code in 0:24', '0:24 में कोड दोबारा भेजें'),
       cta: x('Verify and continue', 'पुष्टि करें और जारी रखें'),
       change: x('Change number', 'नंबर बदलें'),
+    },
+    ap: {
+      phone: x('Continue with phone number', 'फ़ोन नंबर से जारी रखें'),
+      google: x('Continue with Google', 'Google से जारी रखें'),
+      notNow: x('Not now', 'अभी नहीं'),
+      save: {
+        title: x('Saved. Want a backup too?', 'सहेज ली गई। बैकअप भी लें?'),
+        body: x(
+          'Paneer butter masala is on this phone. A free account keeps it safe if you change phones.',
+          'पनीर बटर मसाला इस फ़ोन पर सहेजी गई है। मुफ़्त खाते से यह फ़ोन बदलने पर भी सुरक्षित रहेगी।',
+        ),
+        toast: x('Saved to My recipes', 'मेरी रेसिपी में सहेजी गई'),
+      },
+      import: {
+        title: x('Your first import is in', 'आपकी पहली रेसिपी आ गई'),
+        body: x(
+          'Dal makhani came in with 14 ingredients and 6 steps. Back it up with a free account, or keep cooking as a guest.',
+          'दाल मखनी 14 सामग्री और 6 स्टेप के साथ आ गई है। मुफ़्त खाते से इसका बैकअप लें, या मेहमान के रूप में खाना बनाते रहें।',
+        ),
+        toast: x('Imported and saved', 'इम्पोर्ट होकर सहेजी गई'),
+      },
+      share: {
+        title: x('Link shared', 'लिंक शेयर हो गया'),
+        body: x(
+          'Shared links point to your recipe. Sign in so they keep working if you change phones.',
+          'शेयर किया गया लिंक आपकी रेसिपी से जुड़ा है। साइन इन करें, ताकि फ़ोन बदलने पर भी लिंक चलता रहे।',
+        ),
+        toast: x('Shared to WhatsApp', 'WhatsApp पर शेयर की गई'),
+      },
+      n: {
+        title: x('Keep your recipes safe', 'अपनी रेसिपी सुरक्षित रखें'),
+        body: x(
+          'You have saved 12 recipes as a guest. Create a free account to back them up and use them on any phone.',
+          'आपने मेहमान के रूप में 12 रेसिपी सहेजी हैं। मुफ़्त खाता बनाएँ ताकि ये किसी भी फ़ोन पर मिलें।',
+        ),
+      },
+      exit: {
+        title: x('12 recipes aren’t backed up yet', '12 रेसिपी का बैकअप अभी नहीं हुआ है'),
+        body: x(
+          'They’re saved on this phone only. If you uninstall the app or change phones, they’ll be lost.',
+          'ये सिर्फ़ इस फ़ोन पर सहेजी हैं। ऐप हटाने या फ़ोन बदलने पर ये खो जाएँगी।',
+        ),
+      },
+    },
+    merge: {
+      keep: {
+        title: x('Two recipe boxes found', 'दो खाते मिले'),
+        body: x(
+          'Add the 12 recipes on this phone to your account? Nothing will be deleted.',
+          'इस फ़ोन की 12 रेसिपी को आपके खाते की रेसिपी के साथ जोड़ दें? कुछ भी डिलीट नहीं होगा।',
+        ),
+        phoneTitle: x('This phone', 'इस फ़ोन पर'),
+        phoneSub: x('12 recipes · 1 list', '12 रेसिपी · 1 सूची'),
+        acctTitle: x('Your account', 'आपके खाते में'),
+        acctSub: x('31 recipes', '31 रेसिपी'),
+        total: x('43 recipes after merging', 'जोड़ने के बाद कुल 43 रेसिपी'),
+        primary: x('Merge recipes', 'रेसिपी जोड़ें'),
+        secondary: x('Keep separate', 'अलग रखें'),
+        toast: x('12 recipes merged into your account', '12 रेसिपी आपके खाते में जुड़ गईं'),
+      },
+      collision: {
+        title: x('One recipe is in both', 'एक रेसिपी दोनों जगह है'),
+        body: x(
+          'Dal makhani is on this phone and in your account. We’ll keep both, so nothing is lost.',
+          'दाल मखनी इस फ़ोन पर भी है और आपके खाते में भी। हम दोनों रखेंगे, ताकि कुछ भी न खोए।',
+        ),
+        phoneTitle: x('This phone', 'इस फ़ोन पर'),
+        phoneSub: x('Edited today', 'आज बदली गई'),
+        acctTitle: x('Your account', 'आपके खाते में'),
+        acctSub: x('Saved on 3 March', '3 मार्च को सहेजी'),
+        afterLbl: x('After merging', 'जोड़ने के बाद'),
+        afterAccount: x('Account', 'खाता'),
+        afterPhone: x('This phone', 'यह फ़ोन'),
+        afterTitle: x('Dal makhani', 'दाल मखनी'),
+        afterCopy: x('Dal makhani (2)', 'दाल मखनी (2)'),
+        primary: x('Keep both', 'दोनों रखें'),
+        secondary: x('Choose one instead', 'इनमें से एक चुनें'),
+        toast: x('12 recipes merged. 1 kept as a copy.', '12 रेसिपी जुड़ गईं। 1 कॉपी के रूप में रखी गई।'),
+      },
+      skip: {
+        title: x('Your recipes are backed up', 'आपकी रेसिपी का बैकअप हो गया'),
+        body: x(
+          'This is a new account, so we added the 12 recipes from this phone. Nothing else to do.',
+          'यह नया खाता है, इसलिए इस फ़ोन की 12 रेसिपी इसमें जोड़ दी गईं। आपको कुछ और नहीं करना है।',
+        ),
+        primary: x('Go to My recipes', 'मेरी रेसिपी पर जाएँ'),
+        toast: x('12 recipes added to your account', '12 रेसिपी आपके खाते में जुड़ गईं'),
+      },
+    },
+    list: {
+      eyebrow: x('From 3 recipes', '3 रेसिपी से'),
+      title: x('Shopping list', 'शॉपिंग सूची'),
+      share: x('Share list', 'सूची शेयर करें'),
+      add: x('Add item', 'चीज़ जोड़ें'),
+      progress: (done: number, total: number) =>
+        x(`${done} of ${total} done`, `${total} में से ${done} हो गए`),
+      chips: [
+        { label: x('All', 'सभी'), count: 8, selected: true },
+        { label: x('Dal makhani', 'दाल मखनी'), count: 6 },
+        { label: x('Aloo paratha', 'आलू पराठा'), count: 3 },
+      ],
+      groups: [
+        {
+          name: x('VEGETABLES', 'सब्ज़ी'),
+          rows: [
+            {
+              id: 'onion',
+              title: x('Onion', 'प्याज़'),
+              qty: '3',
+              sub: x('Dal makhani', 'दाल मखनी'),
+            },
+            {
+              id: 'tomato',
+              title: x('Tomato', 'टमाटर'),
+              qty: '4',
+              sub: x('Dal makhani', 'दाल मखनी'),
+            },
+            {
+              id: 'ginger',
+              title: x('Ginger', 'अदरक'),
+              qty: x('2 inch', '2 इंच'),
+              sub: x('Masala chai, Dal makhani', 'मसाला चाय, दाल मखनी'),
+            },
+            {
+              id: 'potato',
+              title: x('Potato', 'आलू'),
+              qty: '5',
+              sub: x('Aloo paratha', 'आलू पराठा'),
+            },
+          ],
+        },
+        {
+          name: x('DAL & ATTA', 'दाल और आटा'),
+          rows: [
+            {
+              id: 'urad',
+              title: x('Whole urad dal', 'साबुत उड़द दाल'),
+              qty: x('1 cup', '1 कप'),
+              sub: x('Dal makhani', 'दाल मखनी'),
+            },
+            {
+              id: 'atta',
+              title: x('Atta', 'आटा'),
+              qty: x('2 cups', '2 कप'),
+              sub: x('Aloo paratha', 'आलू पराठा'),
+            },
+          ],
+        },
+        {
+          name: x('DAIRY', 'डेयरी'),
+          rows: [
+            {
+              id: 'butter',
+              title: x('Butter', 'मक्खन'),
+              qty: '100 g',
+              sub: x('Dal makhani, Aloo paratha', 'दाल मखनी, आलू पराठा'),
+            },
+            {
+              id: 'cream',
+              title: x('Fresh cream', 'मलाई'),
+              qty: '200 ml',
+              sub: x('Dal makhani', 'दाल मखनी'),
+            },
+          ],
+        },
+      ],
+    },
+    shared: {
+      title: x('Paneer butter masala', 'पनीर बटर मसाला'),
+      source: x('Shared with you', 'आपके साथ शेयर की गई'),
+      cta: x('Save to My recipes', 'मेरी रेसिपी में सहेजें'),
     },
   };
 }

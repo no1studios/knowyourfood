@@ -1,5 +1,6 @@
-import { router } from 'expo-router';
-import { ScrollView, Text, View } from 'react-native';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useEffect } from 'react';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useGuestSession } from '@/components/GuestSession';
@@ -14,17 +15,35 @@ import {
   Fab,
   IconButton,
   RecipeCard,
+  Tag,
 } from '@/components/ui';
 import { copy } from '@/lib/i18n/copy';
 
-/** Artboards 04 / 04b — My recipes */
+/** Artboards 04 / 04b — My recipes (+ quiet banner A6, signed-in C4) */
 export default function MyRecipesScreen() {
+  const { state } = useLocalSearchParams<{ state?: string }>();
   const { locale } = useLocale();
-  const { colors, type, space } = useTheme();
-  const { hasRecipes, setHasRecipes } = useGuestSession();
+  const { colors, type, space, radius } = useTheme();
+  const { hasRecipes, setHasRecipes, signedIn, setSignedIn, toast, showToast } = useGuestSession();
   const insets = useSafeAreaInsets();
   const c = copy(locale);
   const bottomPad = 12 + 72 + 24 + insets.bottom;
+
+  useEffect(() => {
+    if (state === 'populated' || state === 'signed-in') {
+      setHasRecipes(true);
+    }
+    if (state === 'signed-in') {
+      setSignedIn(true);
+      showToast(c.merge.keep.toast);
+    }
+  }, [state, setHasRecipes, setSignedIn, showToast, c.merge.keep.toast]);
+
+  useEffect(() => {
+    if (!toast) return;
+    const id = setTimeout(() => showToast(null), 3200);
+    return () => clearTimeout(id);
+  }, [toast, showToast]);
 
   if (!hasRecipes) {
     return (
@@ -78,12 +97,35 @@ export default function MyRecipesScreen() {
           actions={
             <>
               <IconButton icon="search" label={c.home.search} variant="surface" />
-              <IconButton icon="cart" label={c.home.list} variant="surface" badge={8} />
+              {signedIn ? (
+                <IconButton
+                  icon="user"
+                  label={c.nav.profile}
+                  variant="tonal"
+                  onPress={() => router.push('/(tabs)/profile')}
+                />
+              ) : (
+                <IconButton
+                  icon="cart"
+                  label={c.home.list}
+                  variant="surface"
+                  badge={8}
+                  onPress={() => router.push('/(tabs)/checklist')}
+                />
+              )}
             </>
           }
         />
 
         <View style={{ paddingHorizontal: space[5], gap: space[4] }}>
+          {signedIn ? (
+            <View style={{ alignSelf: 'flex-start' }}>
+              <Tag tone="mint" icon="check">
+                {c.home.synced}
+              </Tag>
+            </View>
+          ) : null}
+
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
             {c.home.chips.map((ch) => (
               <Chip key={ch.label} size="sm" selected={!!ch.selected} count={ch.count}>
@@ -132,14 +174,36 @@ export default function MyRecipesScreen() {
             ))}
           </View>
 
-          <AccountPrompt
-            variant="banner"
-            lang={locale}
-            copy={c.home.banner}
-            onPrimary={() => router.push('/auth/phone')}
-          />
+          {!signedIn ? (
+            <Pressable onLongPress={() => router.push('/account-prompt?variant=n-recipes')}>
+              <AccountPrompt
+                variant="banner"
+                lang={locale}
+                copy={c.home.banner}
+                onPrimary={() => router.push('/auth/phone')}
+              />
+            </Pressable>
+          ) : null}
         </View>
       </ScrollView>
+
+      {toast ? (
+        <View
+          style={{
+            position: 'absolute',
+            left: space[5],
+            right: space[5],
+            top: insets.top + 8,
+            zIndex: 6,
+            paddingVertical: space[3],
+            paddingHorizontal: space[4],
+            borderRadius: radius.lg,
+            backgroundColor: colors.ink,
+          }}
+        >
+          <Text style={[type.label, { color: colors.inkInverse, textAlign: 'center' }]}>{toast}</Text>
+        </View>
+      ) : null}
 
       <View style={{ position: 'absolute', right: 16, bottom: bottomPad - 24, zIndex: 4 }}>
         <Fab icon="download" label={c.home.fab} onPress={() => router.push('/import')} />
