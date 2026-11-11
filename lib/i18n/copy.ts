@@ -166,5 +166,121 @@ export function copy(locale: AppLocale) {
       list: x('List', 'सूची'),
       profile: x('Profile', 'प्रोफ़ाइल'),
     },
+    close: x('Close', 'बंद करें'),
+    imp: {
+      title: x('Import recipe', 'रेसिपी इम्पोर्ट करें'),
+      field: x('Recipe link', 'रेसिपी का लिंक'),
+      helper: x(
+        'Works with Instagram, YouTube and most recipe websites',
+        'Instagram, YouTube और ज़्यादातर रेसिपी वेबसाइट से काम करता है',
+      ),
+      found: x('Recipe found', 'रेसिपी मिल गई'),
+      cardTitle: x('Dal makhani', 'दाल मखनी'),
+      cardTime: x('50 min', '50 मिनट'),
+      cardServ: x('4 servings', '4 लोगों के लिए'),
+      counts: x(
+        '14 ingredients · 6 steps. You can edit them after saving.',
+        '14 सामग्री · 6 स्टेप। सहेजने के बाद आप इन्हें बदल सकते हैं।',
+      ),
+      other: x('OTHER WAYS', 'और तरीके'),
+      ways: [
+        { icon: 'camera' as const, tone: 'mint' as const, title: x('Scan a photo', 'फ़ोटो स्कैन करें') },
+        { icon: 'chat' as const, tone: 'sky' as const, title: x('Paste text', 'टेक्स्ट पेस्ट करें') },
+        { icon: 'edit' as const, tone: 'haldi' as const, title: x('Write it yourself', 'खुद लिखें') },
+      ],
+      cta: x('Save recipe', 'रेसिपी सहेजें'),
+      linkValue: 'instagram.com/reel/C8xK2pL…',
+    },
+    det: {
+      share: x('Share', 'शेयर करें'),
+      edit: x('Edit', 'बदलें'),
+      saved: x('Saved', 'सहेजी गई'),
+      title: x('Dal makhani', 'दाल मखनी'),
+      source: x(
+        'From @rasoi.with.ritu on Instagram',
+        'Instagram पर @rasoi.with.ritu से',
+      ),
+      tags: [
+        { label: x('Dinner', 'रात का खाना'), tone: 'haldi' as const },
+        { label: x('Punjabi', 'पंजाबी'), tone: 'mint' as const },
+      ],
+      stats: [
+        { icon: 'clock' as const, v: x('50 min', '50 मिनट'), k: x('Total', 'कुल समय') },
+        { icon: 'users' as const, v: '4', k: x('Servings', 'लोग') },
+        { icon: 'flame' as const, v: x('Medium', 'मध्यम'), k: x('Spice', 'तीखापन') },
+      ],
+      tabIng: x('Ingredients', 'सामग्री'),
+      tabSteps: x('Steps', 'स्टेप'),
+      ing: [
+        { title: x('Whole urad dal', 'साबुत उड़द दाल'), qty: x('1 cup', '1 कप') },
+        { title: x('Rajma', 'राजमा'), qty: x('¼ cup', '¼ कप') },
+        { title: x('Butter', 'मक्खन'), qty: x('3 tbsp', '3 बड़े चम्मच') },
+        { title: x('Tomato purée', 'टमाटर प्यूरी'), qty: x('1 cup', '1 कप') },
+        { title: x('Fresh cream', 'मलाई'), qty: x('½ cup', '½ कप') },
+        { title: x('Kasuri methi', 'कसूरी मेथी'), qty: x('1 tsp', '1 छोटा चम्मच') },
+      ],
+      steps: [
+        x(
+          'Soak urad dal and rajma overnight. Pressure cook with salt for 6–7 whistles.',
+          'उड़द दाल और राजमा को रात भर भिगोएँ। नमक डालकर 6–7 सीटी तक प्रेशर कुक करें।',
+        ),
+        x(
+          'Heat butter, add ginger-garlic paste and cook for 1 minute.',
+          'मक्खन गरम करें, अदरक-लहसुन का पेस्ट डालें और 1 मिनट पकाएँ।',
+        ),
+        x(
+          'Add tomato purée and cook until the butter separates.',
+          'टमाटर प्यूरी डालें और मक्खन अलग होने तक पकाएँ।',
+        ),
+      ],
+      cta: x('Add to shopping list', 'शॉपिंग सूची में जोड़ें'),
+    },
+    share: {
+      title: x('Share recipe', 'रेसिपी शेयर करें'),
+      subtitle: 'knowyourfood.app/r/dal-482',
+      targets: [
+        { key: 'wa', icon: 'chat' as const, label: 'WhatsApp', tone: 'mint' as const },
+        { key: 'ig', icon: 'camera' as const, label: 'Instagram', tone: 'rose' as const },
+        { key: 'link', icon: 'link' as const, label: x('Copy link', 'लिंक कॉपी करें'), tone: 'sky' as const },
+        { key: 'img', icon: 'image' as const, label: x('Save card', 'कार्ड सहेजें'), tone: 'haldi' as const },
+        { key: 'more', icon: 'more' as const, label: x('More', 'और'), tone: 'neutral' as const },
+      ],
+      options: [
+        {
+          icon: 'list' as const,
+          title: x('Send ingredients as text', 'सामग्री टेक्स्ट में भेजें'),
+          subtitle: x('Best for WhatsApp groups', 'WhatsApp ग्रुप के लिए सबसे अच्छा'),
+        },
+        {
+          icon: 'cart' as const,
+          title: x('Add to shopping list', 'शॉपिंग सूची में जोड़ें'),
+        },
+      ],
+    },
+    auth: {
+      title: x('Back up your recipes', 'अपनी रेसिपी का बैकअप लें'),
+      body: x(
+        'Sign in with your phone number. Your 12 saved recipes stay on this phone too.',
+        'अपने फ़ोन नंबर से साइन इन करें। आपकी 12 रेसिपी इस फ़ोन पर भी रहेंगी।',
+      ),
+      phone: x('Phone number', 'फ़ोन नंबर'),
+      helper: x('You’ll get a 6-digit code by SMS', 'आपको SMS से 6 अंकों का कोड मिलेगा'),
+      send: x('Send code', 'कोड भेजें'),
+      google: x('Continue with Google', 'Google से जारी रखें'),
+      guest: x('Continue as guest', 'मेहमान के रूप में जारी रखें'),
+      terms: x(
+        'By continuing, you agree to the Terms and Privacy policy.',
+        'जारी रखकर आप शर्तों और गोपनीयता नीति से सहमत हैं।',
+      ),
+      phoneValue: '+91 98765 43210',
+    },
+    otp: {
+      title: x('Enter the code', 'कोड डालें'),
+      body: x('Sent by SMS to +91 98765 43210', '+91 98765 43210 पर SMS से भेजा गया'),
+      label: x('6-digit code', '6 अंकों का कोड'),
+      helper: x('Resend code in 0:24', '0:24 में कोड दोबारा भेजें'),
+      cta: x('Verify and continue', 'पुष्टि करें और जारी रखें'),
+      change: x('Change number', 'नंबर बदलें'),
+    },
   };
 }
