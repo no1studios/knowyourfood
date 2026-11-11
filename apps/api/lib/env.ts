@@ -29,3 +29,8 @@ export function getMockOtp(): string {
 export function getDatabaseUrl(): string | undefined {
   return read('DATABASE_URL');
 }
+
+/** True when DATABASE_URL is set (Neon/Postgres attached). Does not open a connection. */
+export function isDatabaseConfigured(): boolean {
+  return Boolean(getDatabaseUrl());
+}

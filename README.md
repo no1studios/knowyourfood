@@ -66,7 +66,7 @@ src/theme/           # Locked DS theme (kyf-theme.ts)
 
 ## Vercel API (`apps/api`)
 
-Import the repo in Vercel with **Root Directory `apps/api`** (Framework: Next.js). See [`apps/api/README.md`](./apps/api/README.md) for env vars, mock OTP (`123456`), and health check.
+Import the repo in Vercel with **Root Directory `apps/api`** (Framework: Next.js). See [`apps/api/README.md`](./apps/api/README.md) for env vars, mock OTP (`123456`), Neon `DATABASE_URL`, and health check.
 
 Local API:
 
