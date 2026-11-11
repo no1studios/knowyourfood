@@ -312,6 +312,12 @@ export function copy(locale: AppLocale) {
       accountGoogle: x('Signed in with Google', 'Google से साइन इन'),
       accountApple: x('Signed in with Apple', 'Apple से साइन इन'),
       accountGeneric: x('Signed in', 'साइन इन'),
+      accountSection: x('ACCOUNT', 'खाता'),
+      guestInviteTitle: x('Sign in to back up recipes', 'रेसिपी का बैकअप लेने के लिए साइन इन करें'),
+      guestInviteBody: x(
+        'Your recipes stay on this phone. Sign in to sync and keep them safe if you change devices.',
+        'आपकी रेसिपी इस फ़ोन पर रहेंगी। साइन इन करें ताकि सिंक हों और फ़ोन बदलने पर भी सुरक्षित रहें।',
+      ),
     },
     otp: {
       title: x('Enter the code', 'कोड डालें'),

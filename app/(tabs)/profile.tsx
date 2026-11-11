@@ -15,7 +15,7 @@ function resolveSignedIn(signedIn: boolean, authSession: AuthSession | null) {
   return Boolean(authSession && !authSession.isGuest);
 }
 
-/** Profile — account / Sign out when signed in; phone CTA only when guest. */
+/** Profile — Sign in invite when guest; account + Sign out when signed in. */
 export default function ProfileScreen() {
   const { colors, type, space, radius, elevation } = useTheme();
   const { locale } = useLocale();
@@ -34,7 +34,6 @@ export default function ProfileScreen() {
   const c = copy(locale);
   const bottomPad = 12 + 72 + 24 + insets.bottom;
 
-  // Drive menu from the same session signal as the status line (and auth store).
   const isSignedIn = resolveSignedIn(signedIn, authSession);
   const provider = authSession?.provider;
 
@@ -86,47 +85,64 @@ export default function ProfileScreen() {
               chevron
               onPress={() => setLocalePref(locale === 'hi' ? 'en' : 'hi')}
             />
-            {/* Guest-only: never show phone CTA while signed in */}
-            {!isSignedIn ? (
-              <ListRow
-                icon="phone"
-                iconTone="haldi"
-                title={c.ap.phone}
-                chevron
-                onPress={() => router.push('/auth/phone')}
-              />
-            ) : null}
           </View>
 
-          {isSignedIn ? (
-            <View style={{ gap: space[3] }}>
-              <Text style={[type.overline, { color: colors.inkMuted }]}>
-                {locale === 'hi' ? 'खाता' : 'ACCOUNT'}
-              </Text>
-              <View
-                style={[
-                  {
-                    borderRadius: radius.lg,
-                    overflow: 'hidden',
-                    backgroundColor: colors.border,
-                    gap: 1,
-                  },
-                  elevation[1],
-                ]}
-              >
-                <ListRow
-                  icon="user"
-                  iconTone="mint"
-                  title={accountTitle}
-                  subtitle={accountSubtitle}
-                />
-              </View>
-              <Button variant="secondary" block onPress={() => void onSignOut()}>
-                {c.auth.signOut}
-              </Button>
-              <Text style={[type.caption, { color: colors.inkMuted }]}>{c.auth.signOutHint}</Text>
-            </View>
-          ) : null}
+          <View style={{ gap: space[3] }}>
+            <Text style={[type.overline, { color: colors.inkMuted }]}>{c.auth.accountSection}</Text>
+
+            {isSignedIn ? (
+              <>
+                <View
+                  style={[
+                    {
+                      borderRadius: radius.lg,
+                      overflow: 'hidden',
+                      backgroundColor: colors.border,
+                      gap: 1,
+                    },
+                    elevation[1],
+                  ]}
+                >
+                  <ListRow
+                    icon="user"
+                    iconTone="mint"
+                    title={accountTitle}
+                    subtitle={accountSubtitle}
+                  />
+                </View>
+                <Button variant="secondary" block onPress={() => void onSignOut()}>
+                  {c.auth.signOut}
+                </Button>
+                <Text style={[type.caption, { color: colors.inkMuted }]}>{c.auth.signOutHint}</Text>
+              </>
+            ) : (
+              <>
+                <Text style={[type['title-2'], { color: colors.ink }]}>
+                  {c.auth.guestInviteTitle}
+                </Text>
+                <Text style={[type.body, { color: colors.inkMuted }]}>
+                  {c.auth.guestInviteBody}
+                </Text>
+                <Button
+                  variant="primary"
+                  size="lg"
+                  block
+                  icon="phone"
+                  onPress={() => router.push('/auth/phone')}
+                >
+                  {c.ap.phone}
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="lg"
+                  block
+                  onPress={() => router.push('/auth/google')}
+                >
+                  {c.ap.google}
+                </Button>
+              </>
+            )}
+          </View>
 
           <Text style={[type.overline, { color: colors.inkMuted }]}>LOCAL DATA</Text>
           <View
@@ -170,6 +186,7 @@ export default function ProfileScreen() {
             />
             <ListRow
               title="A5 Unsynced exit"
+              subtitle="Leave with unsynced recipes (debug)"
               chevron
               onPress={() => router.push('/account-prompt?variant=unsynced-exit')}
             />
@@ -179,16 +196,6 @@ export default function ProfileScreen() {
               onPress={() => router.push('/merge?variant=keep-all')}
             />
           </View>
-
-          {!isSignedIn ? (
-            <Button
-              variant="secondary"
-              block
-              onPress={() => router.push('/account-prompt?variant=unsynced-exit')}
-            >
-              Leave with unsynced recipes
-            </Button>
-          ) : null}
         </View>
       </ScrollView>
     </View>
