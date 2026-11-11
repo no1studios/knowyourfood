@@ -110,7 +110,12 @@ function GuestSessionInner({ children }: { children: ReactNode }) {
     };
   }, [setLocale]);
 
-  const commit = useCallback(async (next: GuestStoreSnapshot) => {
+  const commit = useCallback(async (next: GuestStoreSnapshot, prev?: GuestStoreSnapshot) => {
+    // Skip setState when the mutator was a no-op (same JSON). Prevents effect loops
+    // when callers depend on callback identity tied to `snap`.
+    if (prev && JSON.stringify(prev) === JSON.stringify(next)) {
+      return prev;
+    }
     setSnap(next);
     await guestStore.save(next);
     return next;
@@ -119,7 +124,8 @@ function GuestSessionInner({ children }: { children: ReactNode }) {
   const mutate = useCallback(
     async (fn: (s: GuestStoreSnapshot) => GuestStoreSnapshot) => {
       const base = await guestStore.load();
-      return commit(fn(base));
+      const next = fn(base);
+      return commit(next, base);
     },
     [commit],
   );

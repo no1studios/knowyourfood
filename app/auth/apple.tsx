@@ -57,7 +57,7 @@ export default function AuthAppleScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <View>
+      <View style={{ maxHeight: 220, overflow: 'hidden' }}>
         <FoodPhoto art="roti" tone="peach" ratio="360/200" />
         <View style={{ position: 'absolute', top: insets.top + 8, left: 12 }}>
           <IconButton
@@ -70,6 +70,7 @@ export default function AuthAppleScreen() {
       </View>
 
       <ScrollView
+        style={{ flex: 1 }}
         contentContainerStyle={{
           marginTop: -24,
           borderTopLeftRadius: radius.xl,
