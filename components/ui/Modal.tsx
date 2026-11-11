@@ -98,12 +98,19 @@ export function Modal({
         paddingVertical: space[6],
       }}
     >
+      {/* Absolute scrim under the card — without z-index, RN web paints it above in-flow CTAs. */}
       <Pressable
         accessibilityRole="button"
         onPress={onScrimPress}
-        style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 }}
+        style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, zIndex: 1 }}
       />
-      <View style={{ width: '100%', maxWidth: 320 }}>{card}</View>
+      <View
+        accessibilityViewIsModal
+        style={{ width: '100%', maxWidth: 320, zIndex: 2, elevation: 8 }}
+        onStartShouldSetResponder={() => true}
+      >
+        {card}
+      </View>
     </View>
   );
 

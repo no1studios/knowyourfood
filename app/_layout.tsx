@@ -98,8 +98,29 @@ function RootNavigator() {
         <Stack.Screen name="recipe/[id]/edit" />
         <Stack.Screen name="recipe/[id]/share" options={{ presentation: 'modal' }} />
         <Stack.Screen name="auth" />
-        <Stack.Screen name="account-prompt/index" options={{ presentation: 'transparentModal' }} />
-        <Stack.Screen name="merge/index" options={{ presentation: 'transparentModal' }} />
+        {/*
+          transparentModal stays translucent on native. On web it often leaves the overlay
+          mounted after replace/push (URL changes, sheet stays) — use a plain modal + our
+          own scrim instead.
+        */}
+        <Stack.Screen
+          name="account-prompt/index"
+          options={{
+            presentation: Platform.OS === 'web' ? 'modal' : 'transparentModal',
+            animation: Platform.OS === 'web' ? 'fade' : undefined,
+            contentStyle:
+              Platform.OS === 'web' ? { backgroundColor: 'transparent' } : undefined,
+          }}
+        />
+        <Stack.Screen
+          name="merge/index"
+          options={{
+            presentation: Platform.OS === 'web' ? 'modal' : 'transparentModal',
+            animation: Platform.OS === 'web' ? 'fade' : undefined,
+            contentStyle:
+              Platform.OS === 'web' ? { backgroundColor: 'transparent' } : undefined,
+          }}
+        />
         <Stack.Screen name="shared/[slug]" />
       </Stack>
     </>

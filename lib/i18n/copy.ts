@@ -270,26 +270,79 @@ export function copy(locale: AppLocale) {
       ),
       phone: x('Phone number', 'फ़ोन नंबर'),
       helper: x('You’ll get a 6-digit code by SMS', 'आपको SMS से 6 अंकों का कोड मिलेगा'),
+      helperMock: x(
+        'Dev mock: any +91 number, then use the mock code on the next screen',
+        'डेव मॉक: कोई भी +91 नंबर, अगली स्क्रीन पर मॉक कोड डालें',
+      ),
+      mockBanner: x(
+        'Auth keys not set — using local mock verify so the flow still works.',
+        'ऑथ कुंजियाँ सेट नहीं हैं — लोकल मॉक से प्रवाह चलता रहेगा।',
+      ),
       send: x('Send code', 'कोड भेजें'),
       google: x('Continue with Google', 'Google से जारी रखें'),
+      apple: x('Continue with Apple', 'Apple से जारी रखें'),
       guest: x('Continue as guest', 'मेहमान के रूप में जारी रखें'),
+      googleProgress: x(
+        'Continuing with Google… Phone sign-in is paused.',
+        'Google से जारी… फ़ोन साइन-इन रुका हुआ है।',
+      ),
+      appleProgress: x(
+        'Continuing with Apple… Phone sign-in is paused.',
+        'Apple से जारी… फ़ोन साइन-इन रुका हुआ है।',
+      ),
+      phonePaused: x('Phone sign-in paused', 'फ़ोन साइन-इन रुका हुआ है'),
+      appleUnavailable: x(
+        'Apple Sign-In is only available on iOS.',
+        'Apple साइन-इन सिर्फ़ iOS पर उपलब्ध है।',
+      ),
+      retry: x('Try again', 'फिर से कोशिश करें'),
+      errorGeneric: x('Something went wrong. Try again.', 'कुछ गलत हो गया। फिर से कोशिश करें।'),
       terms: x(
         'By continuing, you agree to the Terms and Privacy policy.',
         'जारी रखकर आप शर्तों और गोपनीयता नीति से सहमत हैं।',
       ),
       phoneValue: '+91 98765 43210',
+      signOut: x('Sign out', 'साइन आउट'),
+      signOutHint: x(
+        'Removes your signed-in session on this device. Recipes on this phone stay.',
+        'इस डिवाइस से साइन-इन सत्र हटाता है। इस फ़ोन की रेसिपी बनी रहेंगी।',
+      ),
+      signedOutToast: x('Signed out', 'साइन आउट हो गए'),
+      accountPhone: x('Signed in with phone', 'फ़ोन से साइन इन'),
+      accountGoogle: x('Signed in with Google', 'Google से साइन इन'),
+      accountApple: x('Signed in with Apple', 'Apple से साइन इन'),
+      accountGeneric: x('Signed in', 'साइन इन'),
+      accountSection: x('ACCOUNT', 'खाता'),
+      guestInviteTitle: x('Sign in to back up recipes', 'रेसिपी का बैकअप लेने के लिए साइन इन करें'),
+      guestInviteBody: x(
+        'Your recipes stay on this phone. Sign in to sync and keep them safe if you change devices.',
+        'आपकी रेसिपी इस फ़ोन पर रहेंगी। साइन इन करें ताकि सिंक हों और फ़ोन बदलने पर भी सुरक्षित रहें।',
+      ),
     },
     otp: {
       title: x('Enter the code', 'कोड डालें'),
       body: x('Sent by SMS to +91 98765 43210', '+91 98765 43210 पर SMS से भेजा गया'),
+      bodyTo: (phone: string) =>
+        x(`Sent by SMS to ${phone}`, `${phone} पर SMS से भेजा गया`),
+      bodyMock: (phone: string, code: string) =>
+        x(
+          `Mock mode for ${phone}. Enter ${code} to continue.`,
+          `${phone} के लिए मॉक मोड। जारी रखने के लिए ${code} डालें।`,
+        ),
       label: x('6-digit code', '6 अंकों का कोड'),
       helper: x('Resend code in 0:24', '0:24 में कोड दोबारा भेजें'),
+      helperCountdown: (time: string) =>
+        x(`Resend code in ${time}`, `${time} में कोड दोबारा भेजें`),
+      helperReady: x('Tap to resend code', 'कोड दोबारा भेजने के लिए टैप करें'),
+      incomplete: x('Enter all 6 digits', 'सभी 6 अंक डालें'),
       cta: x('Verify and continue', 'पुष्टि करें और जारी रखें'),
       change: x('Change number', 'नंबर बदलें'),
+      resend: x('Resend code', 'कोड दोबारा भेजें'),
     },
     ap: {
       phone: x('Continue with phone number', 'फ़ोन नंबर से जारी रखें'),
       google: x('Continue with Google', 'Google से जारी रखें'),
+      apple: x('Continue with Apple', 'Apple से जारी रखें'),
       notNow: x('Not now', 'अभी नहीं'),
       save: {
         title: x('Saved. Want a backup too?', 'सहेज ली गई। बैकअप भी लें?'),

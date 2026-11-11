@@ -1,34 +1,166 @@
-import { router } from 'expo-router';
-import { useRef, useState } from 'react';
-import { Text, TextInput, View } from 'react-native';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Pressable, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useGuestSession } from '@/components/GuestSession';
 import { useLocale } from '@/components/LocaleProvider';
 import { useTheme } from '@/components/ThemeProvider';
 import { Button, FoodPhoto, IconButton } from '@/components/ui';
+import {
+  AuthError,
+  authClient,
+  formatPhoneDisplay,
+  getAuthPublicConfig,
+  mergeHrefAfterAuth,
+} from '@/features/auth';
 import { copy } from '@/lib/i18n/copy';
 
-/** Artboard 09 / guest B2 — OTP 6 digit cells (stub — no SMS) */
+/** Artboard 09 / guest B2 — OTP 6 digit cells; auto-verify when complete. */
 export default function AuthOtpScreen() {
+  const {
+    verificationId = '',
+    phoneE164 = '',
+    mock: mockParam = '0',
+  } = useLocalSearchParams<{
+    verificationId?: string;
+    phoneE164?: string;
+    mock?: string;
+  }>();
   const { locale } = useLocale();
   const { colors, type, space, radius } = useTheme();
   const insets = useSafeAreaInsets();
+  const { applyAuthSession } = useGuestSession();
   const c = copy(locale);
-  const [digits, setDigits] = useState(['4', '8', '2', '9', '', '']);
-  const [focusIndex, setFocusIndex] = useState(4);
+  const isMock = mockParam === '1' || verificationId.startsWith('mock_');
+  const mockOtp = getAuthPublicConfig().mockOtp;
+
+  const [digits, setDigits] = useState(['', '', '', '', '', '']);
+  const [focusIndex, setFocusIndex] = useState(0);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [seconds, setSeconds] = useState(24);
+  const [activeVerificationId, setActiveVerificationId] = useState(verificationId);
   const inputs = useRef<Array<{ focus: () => void } | null>>([null, null, null, null, null, null]);
+  const verifyingRef = useRef(false);
+
+  useEffect(() => {
+    setActiveVerificationId(verificationId);
+  }, [verificationId]);
+
+  useEffect(() => {
+    const id = setInterval(() => setSeconds((s) => (s > 0 ? s - 1 : 0)), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    const t = setTimeout(() => inputs.current[0]?.focus(), 250);
+    return () => clearTimeout(t);
+  }, []);
 
   const focusAt = (index: number) => {
     inputs.current[index]?.focus();
     setFocusIndex(index);
   };
 
+  const verify = useCallback(
+    async (codeOverride?: string) => {
+      const code = (codeOverride ?? digits.join('')).replace(/\D/g, '');
+      if (code.length !== 6) {
+        setError(c.otp.incomplete);
+        return;
+      }
+      if (!activeVerificationId) {
+        setError(c.auth.errorGeneric);
+        return;
+      }
+      if (verifyingRef.current) return;
+      verifyingRef.current = true;
+      setBusy(true);
+      setError(null);
+      try {
+        const session = await authClient.verifyPhoneOtp({
+          verificationId: activeVerificationId,
+          code,
+          phoneE164: phoneE164 || undefined,
+        });
+        await applyAuthSession(session);
+        router.replace(mergeHrefAfterAuth('keep-all'));
+      } catch (err) {
+        const message =
+          err instanceof AuthError
+            ? err.message
+            : err instanceof Error
+              ? err.message
+              : c.auth.errorGeneric;
+        setError(message);
+        // Keep digits editable so the user can fix / resend
+        verifyingRef.current = false;
+        setBusy(false);
+      }
+    },
+    [
+      activeVerificationId,
+      applyAuthSession,
+      c.auth.errorGeneric,
+      c.otp.incomplete,
+      digits,
+      phoneE164,
+    ],
+  );
+
   const setDigit = (index: number, value: string) => {
-    const clean = value.replace(/\D/g, '').slice(-1);
+    if (verifyingRef.current) return;
+    const clean = value.replace(/\D/g, '');
+    if (clean.length > 1) {
+      const chars = clean.slice(0, 6).split('');
+      const next = ['', '', '', '', '', ''];
+      chars.forEach((ch, i) => {
+        next[i] = ch;
+      });
+      setDigits(next);
+      focusAt(Math.min(chars.length, 5));
+      setError(null);
+      if (chars.length === 6) {
+        void verify(chars.join(''));
+      }
+      return;
+    }
     const next = [...digits];
-    next[index] = clean;
+    next[index] = clean.slice(-1);
     setDigits(next);
-    if (clean && index < 5) focusAt(index + 1);
+    setError(null);
+    if (clean && index < 5) {
+      focusAt(index + 1);
+    }
+    const code = next.join('');
+    if (code.length === 6 && !next.some((d) => !d)) {
+      void verify(code);
+    }
+  };
+
+  const phoneLabel = phoneE164 ? formatPhoneDisplay(phoneE164) : c.auth.phoneValue;
+
+  const resend = async () => {
+    if (!phoneE164 || seconds > 0 || verifyingRef.current) return;
+    setError(null);
+    try {
+      const started = await authClient.startPhoneOtp({ phoneE164 });
+      setActiveVerificationId(started.verificationId);
+      setSeconds(24);
+      setDigits(['', '', '', '', '', '']);
+      verifyingRef.current = false;
+      setBusy(false);
+      focusAt(0);
+    } catch (err) {
+      const message =
+        err instanceof AuthError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : c.auth.errorGeneric;
+      setError(message);
+    }
   };
 
   return (
@@ -60,7 +192,9 @@ export default function AuthOtpScreen() {
       >
         <View style={{ gap: 6 }}>
           <Text style={[type['title-2'], { color: colors.ink }]}>{c.otp.title}</Text>
-          <Text style={[type.body, { color: colors.inkMuted }]}>{c.otp.body}</Text>
+          <Text style={[type.body, { color: colors.inkMuted }]}>
+            {isMock ? c.otp.bodyMock(phoneLabel, mockOtp) : c.otp.bodyTo(phoneLabel)}
+          </Text>
         </View>
 
         <View style={{ gap: 10 }}>
@@ -93,6 +227,7 @@ export default function AuthOtpScreen() {
                       inputs.current[i] = el as { focus: () => void } | null;
                     }}
                     value={d}
+                    editable={!busy}
                     onChangeText={(v) => setDigit(i, v)}
                     onKeyPress={({ nativeEvent }) => {
                       if (nativeEvent.key === 'Backspace' && !digits[i] && i > 0) {
@@ -101,7 +236,9 @@ export default function AuthOtpScreen() {
                     }}
                     onFocus={() => setFocusIndex(i)}
                     keyboardType="number-pad"
-                    maxLength={1}
+                    textContentType="oneTimeCode"
+                    autoComplete="sms-otp"
+                    maxLength={i === 0 ? 6 : 1}
                     selectTextOnFocus
                     style={{
                       width: '100%',
@@ -117,7 +254,14 @@ export default function AuthOtpScreen() {
               );
             })}
           </View>
-          <Text style={[type.caption, { color: colors.inkMuted }]}>{c.otp.helper}</Text>
+          <Pressable onPress={() => void resend()} disabled={seconds > 0 || busy}>
+            <Text style={[type.caption, { color: colors.inkMuted }]}>
+              {seconds > 0
+                ? c.otp.helperCountdown(`0:${seconds.toString().padStart(2, '0')}`)
+                : c.otp.helperReady}
+            </Text>
+          </Pressable>
+          {error ? <Text style={[type.caption, { color: colors.danger }]}>{error}</Text> : null}
         </View>
 
         <View style={{ flex: 1 }} />
@@ -127,11 +271,13 @@ export default function AuthOtpScreen() {
             variant="primary"
             size="lg"
             block
-            onPress={() => router.replace('/merge?variant=keep-all')}
+            loading={busy}
+            disabled={busy}
+            onPress={() => void verify()}
           >
             {c.otp.cta}
           </Button>
-          <Button variant="ghost" block onPress={() => router.replace('/auth/phone')}>
+          <Button variant="ghost" block disabled={busy} onPress={() => router.replace('/auth/phone')}>
             {c.otp.change}
           </Button>
         </View>
