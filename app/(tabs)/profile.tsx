@@ -15,7 +15,11 @@ function resolveSignedIn(signedIn: boolean, authSession: AuthSession | null) {
   return Boolean(authSession && !authSession.isGuest);
 }
 
-/** Profile — Sign in invite when guest; account + Sign out when signed in. */
+/**
+ * Profile route: `app/(tabs)/profile.tsx` (tab name `profile`).
+ * Guest: unmistakable ACCOUNT invite card (not a ListRow phone row).
+ * Signed in: account row + Sign out.
+ */
 export default function ProfileScreen() {
   const { colors, type, space, radius, elevation } = useTheme();
   const { locale } = useLocale();
@@ -71,22 +75,7 @@ export default function ProfileScreen() {
             {authLabel}
           </Text>
 
-          <View
-            style={[
-              { borderRadius: radius.lg, overflow: 'hidden', backgroundColor: colors.border, gap: 1 },
-              elevation[1],
-            ]}
-          >
-            <ListRow
-              icon="globe"
-              iconTone="sky"
-              title="App language"
-              trailing={locale === 'hi' ? 'हिंदी' : 'EN'}
-              chevron
-              onPress={() => setLocalePref(locale === 'hi' ? 'en' : 'hi')}
-            />
-          </View>
-
+          {/* ACCOUNT first — invite card for guests cannot be mistaken for a ListRow */}
           <View style={{ gap: space[3] }}>
             <Text style={[type.overline, { color: colors.inkMuted }]}>{c.auth.accountSection}</Text>
 
@@ -116,32 +105,62 @@ export default function ProfileScreen() {
                 <Text style={[type.caption, { color: colors.inkMuted }]}>{c.auth.signOutHint}</Text>
               </>
             ) : (
-              <>
-                <Text style={[type['title-2'], { color: colors.ink }]}>
-                  {c.auth.guestInviteTitle}
-                </Text>
-                <Text style={[type.body, { color: colors.inkMuted }]}>
-                  {c.auth.guestInviteBody}
-                </Text>
-                <Button
-                  variant="primary"
-                  size="lg"
-                  block
-                  icon="phone"
-                  onPress={() => router.push('/auth/phone')}
-                >
-                  {c.ap.phone}
-                </Button>
-                <Button
-                  variant="secondary"
-                  size="lg"
-                  block
-                  onPress={() => router.push('/auth/google')}
-                >
-                  {c.ap.google}
-                </Button>
-              </>
+              <View
+                style={[
+                  {
+                    borderRadius: radius.xl,
+                    backgroundColor: colors.surfaceRaised,
+                    padding: space[5],
+                    gap: space[4],
+                  },
+                  elevation[2],
+                ]}
+              >
+                <View style={{ gap: 6 }}>
+                  <Text style={[type['title-2'], { color: colors.ink }]}>
+                    {c.auth.guestInviteTitle}
+                  </Text>
+                  <Text style={[type.body, { color: colors.inkMuted }]}>
+                    {c.auth.guestInviteBody}
+                  </Text>
+                </View>
+                <View style={{ gap: 8 }}>
+                  <Button
+                    variant="primary"
+                    size="lg"
+                    block
+                    icon="phone"
+                    onPress={() => router.push('/auth/phone')}
+                  >
+                    {c.ap.phone}
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="lg"
+                    block
+                    onPress={() => router.push('/auth/google')}
+                  >
+                    {c.ap.google}
+                  </Button>
+                </View>
+              </View>
             )}
+          </View>
+
+          <View
+            style={[
+              { borderRadius: radius.lg, overflow: 'hidden', backgroundColor: colors.border, gap: 1 },
+              elevation[1],
+            ]}
+          >
+            <ListRow
+              icon="globe"
+              iconTone="sky"
+              title="App language"
+              trailing={locale === 'hi' ? 'हिंदी' : 'EN'}
+              chevron
+              onPress={() => setLocalePref(locale === 'hi' ? 'en' : 'hi')}
+            />
           </View>
 
           <Text style={[type.overline, { color: colors.inkMuted }]}>LOCAL DATA</Text>
