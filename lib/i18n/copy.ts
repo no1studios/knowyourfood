@@ -302,6 +302,16 @@ export function copy(locale: AppLocale) {
         'जारी रखकर आप शर्तों और गोपनीयता नीति से सहमत हैं।',
       ),
       phoneValue: '+91 98765 43210',
+      signOut: x('Sign out', 'साइन आउट'),
+      signOutHint: x(
+        'Removes your signed-in session on this device. Recipes on this phone stay.',
+        'इस डिवाइस से साइन-इन सत्र हटाता है। इस फ़ोन की रेसिपी बनी रहेंगी।',
+      ),
+      signedOutToast: x('Signed out', 'साइन आउट हो गए'),
+      accountPhone: x('Signed in with phone', 'फ़ोन से साइन इन'),
+      accountGoogle: x('Signed in with Google', 'Google से साइन इन'),
+      accountApple: x('Signed in with Apple', 'Apple से साइन इन'),
+      accountGeneric: x('Signed in', 'साइन इन'),
     },
     otp: {
       title: x('Enter the code', 'कोड डालें'),

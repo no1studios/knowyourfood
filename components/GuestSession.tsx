@@ -53,6 +53,11 @@ type GuestSessionValue = {
   setSignedIn: (value: boolean) => void;
   /** Persist auth session and mirror signed-in onto the guest store. */
   applyAuthSession: (session: AuthSession) => Promise<void>;
+  /**
+   * Clear auth session only (SecureStore / AsyncStorage). Keeps local recipes,
+   * checklist, locale, and prompt events — not a full guest-store reset.
+   */
+  signOut: () => Promise<void>;
   showToast: (message: string | null) => void;
   seedDemoData: () => Promise<void>;
   resetGuestData: () => Promise<void>;
@@ -199,6 +204,15 @@ function GuestSessionInner({ children }: { children: ReactNode }) {
           ...s,
           signedIn: true,
           claimedAt: s.claimedAt || nowIso(),
+        }));
+      },
+      signOut: async () => {
+        await authClient.signOut();
+        const guest = await authClient.getSession();
+        setAuthSession(guest);
+        await mutate((s) => ({
+          ...s,
+          signedIn: false,
         }));
       },
       showToast: setToast,

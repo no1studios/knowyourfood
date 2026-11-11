@@ -48,6 +48,7 @@ export const hi: TranslationTree = {
     continueWithGoogle: 'Google से जारी रखें',
     continueWithApple: 'Apple से जारी रखें',
     mockMode: 'ऑथ मॉक मोड (लाइव कुंजी नहीं)',
+    signOut: 'साइन आउट',
   },
   accountPrompt: {
     title: 'अकाउंट प्रॉम्प्ट',

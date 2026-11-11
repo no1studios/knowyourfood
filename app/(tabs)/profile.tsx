@@ -20,6 +20,7 @@ export default function ProfileScreen() {
     setLocalePref,
     seedDemoData,
     resetGuestData,
+    signOut,
     showToast,
   } = useGuestSession();
   const insets = useSafeAreaInsets();
@@ -28,6 +29,21 @@ export default function ProfileScreen() {
   const authLabel = signedIn
     ? ` · signed in (${authSession?.provider ?? 'account'})`
     : ' · guest';
+
+  const accountTitle =
+    authSession?.provider === 'phone'
+      ? c.auth.accountPhone
+      : authSession?.provider === 'google'
+        ? c.auth.accountGoogle
+        : authSession?.provider === 'apple'
+          ? c.auth.accountApple
+          : c.auth.accountGeneric;
+
+  const accountSubtitle =
+    authSession?.phoneE164 ||
+    authSession?.email ||
+    authSession?.displayName ||
+    undefined;
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
@@ -53,13 +69,34 @@ export default function ProfileScreen() {
               chevron
               onPress={() => setLocalePref(locale === 'hi' ? 'en' : 'hi')}
             />
-            <ListRow
-              icon="phone"
-              iconTone="haldi"
-              title={c.ap.phone}
-              chevron
-              onPress={() => router.push('/auth/phone')}
-            />
+            {signedIn ? (
+              <>
+                <ListRow
+                  icon="user"
+                  iconTone="mint"
+                  title={accountTitle}
+                  subtitle={accountSubtitle}
+                />
+                <ListRow
+                  icon="close"
+                  iconTone="rose"
+                  title={c.auth.signOut}
+                  subtitle={c.auth.signOutHint}
+                  onPress={async () => {
+                    await signOut();
+                    showToast(c.auth.signedOutToast);
+                  }}
+                />
+              </>
+            ) : (
+              <ListRow
+                icon="phone"
+                iconTone="haldi"
+                title={c.ap.phone}
+                chevron
+                onPress={() => router.push('/auth/phone')}
+              />
+            )}
           </View>
 
           <Text style={[type.overline, { color: colors.inkMuted }]}>LOCAL DATA</Text>
