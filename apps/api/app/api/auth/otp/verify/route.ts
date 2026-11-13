@@ -1,3 +1,4 @@
+import { sanitizeDbError } from '@/lib/db-errors';
 import { isDatabaseConfigured, isAuthMock } from '@/lib/env';
 import {
   AuthHttpError,
@@ -59,19 +60,33 @@ export async function POST(request: Request) {
           persisted: true,
         });
       } catch (dbErr) {
-        // Never break mock/dev auth if the DB is misconfigured.
+        const persistError = sanitizeDbError(dbErr);
+        // AUTH_MOCK must still return a session (Expo smoke), but never hide the
+        // upsert failure — persistError is the signal that Neon write failed.
+        console.error(
+          '[otp/verify] DB upsert failed',
+          persistError.code,
+          persistError.message,
+          persistError.causeCode ?? '',
+        );
         if (isAuthMock()) {
-          console.error(
-            '[otp/verify] DB upsert failed; returning mock session',
-            dbErr instanceof Error ? dbErr.message : 'unknown',
-          );
-          return Response.json({ ...session, persisted: false });
+          return Response.json({
+            ...session,
+            persisted: false,
+            persistError,
+          });
         }
         throw dbErr;
       }
     }
 
-    return Response.json(session);
+    return Response.json({
+      ...session,
+      persisted: false,
+      persistError: isDatabaseConfigured()
+        ? { code: 'phone_required', message: 'phoneE164 required to persist' }
+        : { code: 'db_not_configured', message: 'DATABASE_URL is not set' },
+    });
   } catch (err) {
     return jsonError(err);
   }
