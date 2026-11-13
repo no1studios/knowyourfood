@@ -61,13 +61,15 @@ export async function POST(request: Request) {
         });
       } catch (dbErr) {
         const persistError = sanitizeDbError(dbErr);
-        // Never break mock/dev auth if the DB is misconfigured — but surface why.
+        // AUTH_MOCK must still return a session (Expo smoke), but never hide the
+        // upsert failure — persistError is the signal that Neon write failed.
+        console.error(
+          '[otp/verify] DB upsert failed',
+          persistError.code,
+          persistError.message,
+          persistError.causeCode ?? '',
+        );
         if (isAuthMock()) {
-          console.error(
-            '[otp/verify] DB upsert failed; returning mock session',
-            persistError.code,
-            persistError.message,
-          );
           return Response.json({
             ...session,
             persisted: false,

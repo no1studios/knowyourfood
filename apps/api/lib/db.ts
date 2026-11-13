@@ -23,6 +23,12 @@ export function getSql(): Sql | null {
     cached = null;
     return null;
   }
+  if (!/^postgres(ql)?:\/\//i.test(url)) {
+    // Still construct — neon will throw a clear error on query — but avoid silent junk.
+    console.error(
+      '[db] DATABASE_URL does not look like a postgres URL (expected postgresql://…)',
+    );
+  }
   // HTTP one-shot queries — correct for Vercel Node serverless.
   cached = neon(url);
   return cached;
@@ -36,8 +42,10 @@ export function resetDbClient(): void {
 
 /**
  * Ensure auth tables exist (IF NOT EXISTS). Safe to call on every request;
- * runs at most once per cold start. Fixes "schema applied to wrong branch"
- * and first-deploy cases where SQL Editor was skipped.
+ * runs at most once per cold start when tables are missing.
+ *
+ * Does not fail the request path when tables already exist — CREATE EXTENSION
+ * / DDL errors only matter when we actually need to create schema.
  */
 export async function ensureAuthSchema(sql: Sql = getSql()!): Promise<void> {
   if (!sql) {
@@ -45,8 +53,26 @@ export async function ensureAuthSchema(sql: Sql = getSql()!): Promise<void> {
   }
   if (!schemaReady) {
     schemaReady = (async () => {
-      // Neon HTTP: one statement per request.
-      await sql`CREATE EXTENSION IF NOT EXISTS "pgcrypto"`;
+      const existing = (await sql`
+        SELECT
+          to_regclass('public.users') IS NOT NULL AS users_ok,
+          to_regclass('public.auth_identities') IS NOT NULL AS identities_ok
+      `) as { users_ok: boolean; identities_ok: boolean }[];
+
+      if (existing[0]?.users_ok && existing[0]?.identities_ok) {
+        return;
+      }
+
+      // gen_random_uuid() is in core PG13+; pgcrypto is best-effort on Neon.
+      try {
+        await sql`CREATE EXTENSION IF NOT EXISTS "pgcrypto"`;
+      } catch (err) {
+        console.error(
+          '[db] CREATE EXTENSION pgcrypto skipped',
+          sanitizeDbError(err).message,
+        );
+      }
+
       await sql`
         CREATE TABLE IF NOT EXISTS users (
           id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -146,16 +172,29 @@ export async function pingDatabase(): Promise<DatabasePing> {
 }
 
 /**
- * Run a query with one retry on transient connect/fetch failures.
+ * Retry on transient connect/fetch failures (Neon compute cold start / undici blips).
  */
 export async function withDbRetry<T>(fn: () => Promise<T>): Promise<T> {
-  try {
-    return await fn();
-  } catch (err) {
-    const info = sanitizeDbError(err);
-    if (info.code !== 'db_connect_failed') throw err;
-    // Brief pause then retry once (cold Neon / flaky fetch).
-    await new Promise((r) => setTimeout(r, 150));
-    return await fn();
+  const delaysMs = [0, 400, 1200];
+  let lastErr: unknown;
+  for (let i = 0; i < delaysMs.length; i++) {
+    if (delaysMs[i] > 0) {
+      await new Promise((r) => setTimeout(r, delaysMs[i]));
+    }
+    try {
+      return await fn();
+    } catch (err) {
+      lastErr = err;
+      const info = sanitizeDbError(err);
+      if (info.code !== 'db_connect_failed' || i === delaysMs.length - 1) {
+        throw err;
+      }
+      console.error(
+        '[db] transient connect failure; retrying',
+        info.message,
+        info.causeCode ?? '',
+      );
+    }
   }
+  throw lastErr;
 }
