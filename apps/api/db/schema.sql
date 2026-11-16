@@ -34,3 +34,9 @@ CREATE INDEX IF NOT EXISTS auth_identities_user_id_idx
 CREATE INDEX IF NOT EXISTS auth_identities_phone_e164_idx
   ON auth_identities (phone_e164)
   WHERE phone_e164 IS NOT NULL;
+
+-- Idempotent upgrades for DBs created from older pastes (e.g. users.phone TEXT,
+-- auth_identities without phone_e164). Safe when columns already exist.
+ALTER TABLE auth_identities ADD COLUMN IF NOT EXISTS phone_e164 TEXT;
+ALTER TABLE auth_identities ADD COLUMN IF NOT EXISTS email TEXT;
+ALTER TABLE auth_identities ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT now();

@@ -40,12 +40,28 @@ export function resetDbClient(): void {
   schemaReady = null;
 }
 
+/** Columns required by upsert SQL (users.ts). Table existence alone is not enough. */
+async function authIdentityColumnsReady(sql: Sql): Promise<boolean> {
+  const rows = (await sql`
+    SELECT
+      COUNT(*) FILTER (WHERE column_name = 'phone_e164') > 0 AS phone_ok,
+      COUNT(*) FILTER (WHERE column_name = 'email') > 0 AS email_ok,
+      COUNT(*) FILTER (WHERE column_name = 'created_at') > 0 AS created_ok
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'auth_identities'
+  `) as { phone_ok: boolean; email_ok: boolean; created_ok: boolean }[];
+  const row = rows[0];
+  return Boolean(row?.phone_ok && row?.email_ok && row?.created_ok);
+}
+
 /**
- * Ensure auth tables exist (IF NOT EXISTS). Safe to call on every request;
- * runs at most once per cold start when tables are missing.
+ * Ensure auth tables + required columns exist. Safe to call on every request;
+ * runs at most once per cold start after a successful ensure.
  *
- * Does not fail the request path when tables already exist — CREATE EXTENSION
- * / DDL errors only matter when we actually need to create schema.
+ * Important: `CREATE TABLE IF NOT EXISTS` does not add missing columns. Neon DBs
+ * created from an older paste (e.g. phone on users, no phone_e164) still need
+ * ALTER … ADD COLUMN. We always apply idempotent column/index upgrades.
  */
 export async function ensureAuthSchema(sql: Sql = getSql()!): Promise<void> {
   if (!sql) {
@@ -59,45 +75,62 @@ export async function ensureAuthSchema(sql: Sql = getSql()!): Promise<void> {
           to_regclass('public.auth_identities') IS NOT NULL AS identities_ok
       `) as { users_ok: boolean; identities_ok: boolean }[];
 
-      if (existing[0]?.users_ok && existing[0]?.identities_ok) {
-        return;
+      const tablesOk = Boolean(
+        existing[0]?.users_ok && existing[0]?.identities_ok,
+      );
+
+      if (!tablesOk) {
+        // gen_random_uuid() is in core PG13+; pgcrypto is best-effort on Neon.
+        try {
+          await sql`CREATE EXTENSION IF NOT EXISTS "pgcrypto"`;
+        } catch (err) {
+          console.error(
+            '[db] CREATE EXTENSION pgcrypto skipped',
+            sanitizeDbError(err).message,
+          );
+        }
+
+        await sql`
+          CREATE TABLE IF NOT EXISTS users (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+            display_name TEXT,
+            preferred_locale TEXT NOT NULL DEFAULT 'en'
+              CHECK (preferred_locale IN ('en', 'hi')),
+            diet_prefs TEXT[] NOT NULL DEFAULT '{}',
+            open_to_orders BOOLEAN NOT NULL DEFAULT false,
+            onboarding_recipe_sources TEXT[]
+          )
+        `;
+        await sql`
+          CREATE TABLE IF NOT EXISTS auth_identities (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            user_id UUID NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+            provider TEXT NOT NULL
+              CHECK (provider IN ('phone', 'google', 'apple')),
+            provider_subject TEXT NOT NULL,
+            phone_e164 TEXT,
+            email TEXT,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+            UNIQUE (provider, provider_subject)
+          )
+        `;
       }
 
-      // gen_random_uuid() is in core PG13+; pgcrypto is best-effort on Neon.
-      try {
-        await sql`CREATE EXTENSION IF NOT EXISTS "pgcrypto"`;
-      } catch (err) {
-        console.error(
-          '[db] CREATE EXTENSION pgcrypto skipped',
-          sanitizeDbError(err).message,
-        );
-      }
+      // Align drifted tables with schema.sql (no-op when columns already exist).
+      await sql`
+        ALTER TABLE auth_identities
+          ADD COLUMN IF NOT EXISTS phone_e164 TEXT
+      `;
+      await sql`
+        ALTER TABLE auth_identities
+          ADD COLUMN IF NOT EXISTS email TEXT
+      `;
+      await sql`
+        ALTER TABLE auth_identities
+          ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      `;
 
-      await sql`
-        CREATE TABLE IF NOT EXISTS users (
-          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-          created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-          display_name TEXT,
-          preferred_locale TEXT NOT NULL DEFAULT 'en'
-            CHECK (preferred_locale IN ('en', 'hi')),
-          diet_prefs TEXT[] NOT NULL DEFAULT '{}',
-          open_to_orders BOOLEAN NOT NULL DEFAULT false,
-          onboarding_recipe_sources TEXT[]
-        )
-      `;
-      await sql`
-        CREATE TABLE IF NOT EXISTS auth_identities (
-          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-          user_id UUID NOT NULL REFERENCES users (id) ON DELETE CASCADE,
-          provider TEXT NOT NULL
-            CHECK (provider IN ('phone', 'google', 'apple')),
-          provider_subject TEXT NOT NULL,
-          phone_e164 TEXT,
-          email TEXT,
-          created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-          UNIQUE (provider, provider_subject)
-        )
-      `;
       await sql`
         CREATE INDEX IF NOT EXISTS auth_identities_user_id_idx
           ON auth_identities (user_id)
@@ -151,15 +184,27 @@ export async function pingDatabase(): Promise<DatabasePing> {
         to_regclass('public.auth_identities') IS NOT NULL AS identities_ok
     `) as { users_ok: boolean; identities_ok: boolean }[];
     const row = tables[0];
-    const ok = Boolean(row?.users_ok && row?.identities_ok);
+    const tablesOk = Boolean(row?.users_ok && row?.identities_ok);
+    if (!tablesOk) {
+      return {
+        reachable: true,
+        schemaReady: false,
+        error: {
+          code: 'db_schema_missing',
+          message: 'users / auth_identities tables missing after ensure',
+        },
+      };
+    }
+    const columnsOk = await authIdentityColumnsReady(sql);
     return {
       reachable: true,
-      schemaReady: ok,
-      error: ok
+      schemaReady: columnsOk,
+      error: columnsOk
         ? undefined
         : {
-            code: 'db_schema_missing',
-            message: 'users / auth_identities tables missing after ensure',
+            code: 'db_schema_columns_missing',
+            message:
+              'auth_identities missing required columns (phone_e164 / email / created_at)',
           },
     };
   } catch (err) {
