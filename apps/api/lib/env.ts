@@ -5,7 +5,14 @@
 function read(name: string): string | undefined {
   const value = process.env[name];
   if (typeof value !== 'string') return undefined;
-  const trimmed = value.trim();
+  let trimmed = value.trim();
+  // Common paste mistake: wrapping quotes in Vercel / .env
+  if (
+    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+    (trimmed.startsWith("'") && trimmed.endsWith("'"))
+  ) {
+    trimmed = trimmed.slice(1, -1).trim();
+  }
   return trimmed.length > 0 ? trimmed : undefined;
 }
 
@@ -26,11 +33,21 @@ export function getMockOtp(): string {
   return read('AUTH_MOCK_OTP') ?? '123456';
 }
 
+/**
+ * Postgres URL for Neon (or compatible).
+ * Prefers DATABASE_URL; falls back to Neon/Vercel integration aliases.
+ */
 export function getDatabaseUrl(): string | undefined {
-  return read('DATABASE_URL');
+  return (
+    read('DATABASE_URL') ??
+    read('POSTGRES_URL') ??
+    read('POSTGRES_PRISMA_URL') ??
+    read('DATABASE_URL_UNPOOLED') ??
+    read('POSTGRES_URL_NON_POOLING')
+  );
 }
 
-/** True when DATABASE_URL is set (Neon/Postgres attached). Does not open a connection. */
+/** True when a database URL env var is set. Does not open a connection. */
 export function isDatabaseConfigured(): boolean {
   return Boolean(getDatabaseUrl());
 }

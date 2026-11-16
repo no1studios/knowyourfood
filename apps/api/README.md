@@ -40,10 +40,14 @@ Do this once so OTP verify can persist `users` + `auth_identities`. You never ne
    - Save
 4. In the **Neon SQL Editor**, paste and run [`db/schema.sql`](./db/schema.sql) (creates `users` + `auth_identities`).
 5. **Redeploy** the Vercel project (Deployments → … → Redeploy, or push a commit).
-6. Check health: `GET /api/health` should show `"databaseConfigured": true`.
+6. Check health: `GET /api/health` should show `"databaseConfigured": true`, `"databaseReachable": true`, `"databaseSchemaReady": true`.
 7. Verify OTP with a phone number; response includes `"persisted": true` and a UUID `userId` when the upsert succeeds.
 
-`AUTH_MOCK=true` continues to accept OTP `123456` without SMS. Real SMS is still out of scope.
+If verify returns `"persisted": false`, check `persistError` in the JSON (and `databaseError` on `/api/health`). Common causes: wrong/quoted `DATABASE_URL`, URL points at a different Neon branch than the SQL Editor, or missing redeploy after setting the env var.
+
+`AUTH_MOCK=true` continues to accept OTP `123456` without SMS. The API still upserts to Neon whenever `DATABASE_URL` is set — mock mode only skips real SMS. Real SMS is still out of scope.
+
+**Do not wrap the connection string in quotes** when pasting into Vercel. Prefer the **pooled** string (`…-pooler…`, `sslmode=require`).
 
 ## Local development
 
@@ -87,7 +91,7 @@ curl -s -X POST http://localhost:3000/api/auth/otp/verify \
 
 | Method | Path | Purpose |
 |--------|------|---------|
-| `GET` | `/api/health` | Deploy check (`authMock`, `databaseConfigured`) |
+| `GET` | `/api/health` | Deploy check (`authMock`, `databaseConfigured`, live `databaseReachable` / `databaseSchemaReady`) |
 | `POST` | `/api/auth/otp/start` | Start phone OTP (+91) |
 | `POST` | `/api/auth/otp/verify` | Verify OTP → session (+ DB upsert when configured) |
 | `POST` | `/api/auth/oauth/[provider]` | `google` \| `apple` token exchange stub |
