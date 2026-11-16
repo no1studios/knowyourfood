@@ -45,6 +45,8 @@ Do this once so OTP verify can persist `users` + `auth_identities`. You never ne
 
 If verify returns `"persisted": false`, check `persistError` in the JSON (and `databaseError` on `/api/health`). Common causes: wrong/quoted `DATABASE_URL`, URL points at a different Neon branch than the SQL Editor, or missing redeploy after setting the env var.
 
+If `persistError` is Postgres `42703` (`column i.phone_e164 does not exist`), the Neon DB was created from an older table shape. Run [`db/migrate-phone-e164.sql`](./db/migrate-phone-e164.sql) in the Neon SQL Editor (or re-run [`db/schema.sql`](./db/schema.sql), which includes the same `ALTER … IF NOT EXISTS`). After deploy, `ensureAuthSchema` also applies those column upgrades automatically.
+
 `AUTH_MOCK=true` continues to accept OTP `123456` without SMS. The API still upserts to Neon whenever `DATABASE_URL` is set — mock mode only skips real SMS. Real SMS is still out of scope.
 
 **Do not wrap the connection string in quotes** when pasting into Vercel. Prefer the **pooled** string (`…-pooler…`, `sslmode=require`).
