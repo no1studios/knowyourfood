@@ -11,11 +11,11 @@ Postgres via **Neon** (`@neondatabase/serverless`) when `DATABASE_URL` is set. *
 3. Set **Root Directory** to **`apps/api`** (Edit → select `apps/api`).
 4. Framework Preset: **Next.js** (auto-detected via `vercel.json` / `package.json`).
 5. Environment Variables (Project Settings → Environment Variables), at minimum:
-   - `AUTH_MOCK` = `true` (deploy works before SMS/OAuth)
+   - `AUTH_MOCK` = `true` (**safe default** — deploy works before SMS/OAuth)
    - `AUTH_MOCK_OTP` = `123456` (optional; this is the default)
    - `DATABASE_URL` = (optional until Neon is attached — see below)
-   - Leave Twilio / Firebase / Google / Apple secrets empty while mocking
-6. Deploy. Smoke-check: `https://<deployment>.vercel.app/api/health`
+   - Leave `MSG91_*` / Google / Apple secrets empty while mocking
+6. Deploy. Smoke-check: `https://<deployment>.vercel.app/api/health` (expect `authMock: true`, `smsConfigured: false` until MSG91 keys are set)
 
 ### Point the Expo app at the deployment
 
@@ -47,9 +47,46 @@ If verify returns `"persisted": false`, check `persistError` in the JSON (and `d
 
 If `persistError` is Postgres `42703` (`column i.phone_e164 does not exist`), the Neon DB was created from an older table shape. Run [`db/migrate-phone-e164.sql`](./db/migrate-phone-e164.sql) in the Neon SQL Editor (or re-run [`db/schema.sql`](./db/schema.sql), which includes the same `ALTER … IF NOT EXISTS`). After deploy, `ensureAuthSchema` also applies those column upgrades automatically.
 
-`AUTH_MOCK=true` continues to accept OTP `123456` without SMS. The API still upserts to Neon whenever `DATABASE_URL` is set — mock mode only skips real SMS. Real SMS is still out of scope.
+`AUTH_MOCK=true` continues to accept OTP `123456` without SMS. The API still upserts to Neon whenever `DATABASE_URL` is set — mock mode only skips real SMS.
 
 **Do not wrap the connection string in quotes** when pasting into Vercel. Prefer the **pooled** string (`…-pooler…`, `sslmode=require`).
+
+## Real SMS (MSG91 — India)
+
+Live phone OTP uses **MSG91 SendOTP + Verify OTP (v5)**. Keep `AUTH_MOCK=true` until keys are ready; flipping Production to live SMS is an env change + redeploy (no code change).
+
+### Required Vercel env keys (names only)
+
+| Key | Required | Notes |
+|-----|----------|--------|
+| `AUTH_MOCK` | yes | Keep `true` until MSG91 works; set `false` for real SMS |
+| `MSG91_AUTH_KEY` | for live | Auth key from MSG91 dashboard |
+| `MSG91_TEMPLATE_ID` | for live | OTP template id (DLT-mapped for India) |
+| `MSG91_SENDER_ID` | optional | 6-char DLT header if not set on the template |
+| `MSG91_OTP_LENGTH` | optional | Default `6` |
+| `MSG91_OTP_EXPIRY_MINUTES` | optional | Default `5` |
+
+Twilio / Firebase placeholders remain in `.env.example` but are **not wired** — MSG91 is the India path.
+
+### Behavior
+
+| `AUTH_MOCK` | MSG91 configured? | Result |
+|-------------|-------------------|--------|
+| `true` (default) | ignored | Mock OTP `123456`; no SMS |
+| `false` | yes (`AUTH_KEY` + `TEMPLATE_ID`) | Real SMS via MSG91; verify via MSG91 Verify API → Neon upsert |
+| `false` | no | **501** `sms_not_configured` |
+
+### MSG91 console setup (operator)
+
+1. Sign up / log in at [MSG91 Control](https://control.msg91.com).
+2. Complete **India DLT** registration (PE ID, sender header, OTP content template) if sending to Indian mobiles.
+3. Copy **Auth Key** (Dashboard → Authkey / API).
+4. Create an **OTP template** (OTP → Templates) with `##OTP##` placeholder; map the DLT template id. Copy the MSG91 **template id**.
+5. In **Vercel** → API project → Environment Variables, set `MSG91_AUTH_KEY`, `MSG91_TEMPLATE_ID` (and optional `MSG91_SENDER_ID`) for **Production**. Leave `AUTH_MOCK=true` until a handset smoke passes on Preview if you prefer.
+6. Redeploy. Health should show `"smsConfigured": true` (still `"authMock": true` until you flip).
+7. When ready for Production live SMS: set `AUTH_MOCK=false`, redeploy, then start/verify with a real +91 number (SMS delivers the code — not `123456`).
+
+Docs: [MSG91 OTP](https://docs.msg91.com/otp) · API host `https://control.msg91.com/api/v5/otp`.
 
 ## Local development
 
@@ -93,8 +130,8 @@ curl -s -X POST http://localhost:3000/api/auth/otp/verify \
 
 | Method | Path | Purpose |
 |--------|------|---------|
-| `GET` | `/api/health` | Deploy check (`authMock`, `databaseConfigured`, live `databaseReachable` / `databaseSchemaReady`) |
-| `POST` | `/api/auth/otp/start` | Start phone OTP (+91) |
+| `GET` | `/api/health` | Deploy check (`authMock`, `smsConfigured`, `databaseConfigured`, live DB ping) |
+| `POST` | `/api/auth/otp/start` | Start phone OTP (+91) — mock or MSG91 SendOTP |
 | `POST` | `/api/auth/otp/verify` | Verify OTP → session (+ DB upsert when configured) |
 | `POST` | `/api/auth/oauth/[provider]` | `google` \| `apple` token exchange stub |
 
@@ -107,10 +144,10 @@ curl -s -X POST http://localhost:3000/api/auth/otp/verify \
 
 ## Env vars
 
-See [`.env.example`](./.env.example): `DATABASE_URL`, `AUTH_MOCK`, `AUTH_MOCK_OTP`, Twilio / Firebase placeholders, Google / Apple OAuth placeholders. **No real secrets are committed.**
+See [`.env.example`](./.env.example): `DATABASE_URL`, `AUTH_MOCK`, `AUTH_MOCK_OTP`, **MSG91** (`MSG91_AUTH_KEY`, `MSG91_TEMPLATE_ID`, optional sender/length/expiry), Google / Apple OAuth placeholders. **No real secrets are committed.**
 
-When `AUTH_MOCK=false` and providers are unset, auth routes return **501** so misconfiguration is obvious. Mock mode tolerates a missing or broken `DATABASE_URL` (falls back to in-memory mock session).
+When `AUTH_MOCK=false` and MSG91 is unset, OTP routes return **501** `sms_not_configured`. Mock mode tolerates a missing or broken `DATABASE_URL` (falls back to in-memory mock session).
 
 ## Out of scope (this scaffold)
 
-Real SMS send, full recipe/shopping schema, PostHog, UI redesign.
+Twilio/Firebase SMS, full recipe/shopping schema, PostHog, UI redesign.
