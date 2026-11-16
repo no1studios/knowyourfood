@@ -14,8 +14,9 @@ Postgres via **Neon** (`@neondatabase/serverless`) when `DATABASE_URL` is set. *
    - `AUTH_MOCK` = `true` (**safe default** — deploy works before SMS/OAuth)
    - `AUTH_MOCK_OTP` = `123456` (optional; this is the default)
    - `DATABASE_URL` = (optional until Neon is attached — see below)
-   - Leave `MSG91_*` / Google / Apple secrets empty while mocking
-6. Deploy. Smoke-check: `https://<deployment>.vercel.app/api/health` (expect `authMock: true`, `smsConfigured: false` until MSG91 keys are set)
+   - Leave `MSG91_*` empty while phone stays on mock
+   - Optional Google: `GOOGLE_CLIENT_ID` (Web OAuth client ID) — live Google works even with `AUTH_MOCK=true`
+6. Deploy. Smoke-check: `https://<deployment>.vercel.app/api/health` (expect `authMock: true`, `smsConfigured: false`, `googleConfigured: false` until Google client ID is set)
 
 ### Point the Expo app at the deployment
 
@@ -110,7 +111,8 @@ With `AUTH_MOCK=true` (default):
 |------|---------|--------|
 | Start | `POST /api/auth/otp/start` `{ "phoneE164": "+919876543210" }` | Returns `verificationId`, `mock: true`. **No SMS sent.** |
 | Verify | `POST /api/auth/otp/verify` `{ "verificationId", "code": "123456", "phoneE164?" }` | Code must match `AUTH_MOCK_OTP` (default **123456**). With `DATABASE_URL` + `phoneE164`, upserts user and returns DB `userId`. |
-| OAuth | `POST /api/auth/oauth/google` or `…/apple` | Returns a deterministic mock session; tokens are not validated. |
+| OAuth Google | `POST /api/auth/oauth/google` `{ "idToken" }` | Verifies Google ID token when `GOOGLE_CLIENT_ID` is set; else mock session if `AUTH_MOCK`. Upserts Neon when `DATABASE_URL` is set. |
+| OAuth Apple | `POST /api/auth/oauth/apple` | Mock session if `AUTH_MOCK`; else **501** (not wired). |
 
 Example:
 
@@ -130,10 +132,10 @@ curl -s -X POST http://localhost:3000/api/auth/otp/verify \
 
 | Method | Path | Purpose |
 |--------|------|---------|
-| `GET` | `/api/health` | Deploy check (`authMock`, `smsConfigured`, `databaseConfigured`, live DB ping) |
+| `GET` | `/api/health` | Deploy check (`authMock`, `smsConfigured`, `googleConfigured`, `databaseConfigured`, live DB ping) |
 | `POST` | `/api/auth/otp/start` | Start phone OTP (+91) — mock or MSG91 SendOTP |
 | `POST` | `/api/auth/otp/verify` | Verify OTP → session (+ DB upsert when configured) |
-| `POST` | `/api/auth/oauth/[provider]` | `google` \| `apple` token exchange stub |
+| `POST` | `/api/auth/oauth/[provider]` | `google` (ID token verify + upsert) \| `apple` (mock / 501) |
 
 ## Schema
 
@@ -144,10 +146,46 @@ curl -s -X POST http://localhost:3000/api/auth/otp/verify \
 
 ## Env vars
 
-See [`.env.example`](./.env.example): `DATABASE_URL`, `AUTH_MOCK`, `AUTH_MOCK_OTP`, **MSG91** (`MSG91_AUTH_KEY`, `MSG91_TEMPLATE_ID`, optional sender/length/expiry), Google / Apple OAuth placeholders. **No real secrets are committed.**
+See [`.env.example`](./.env.example): `DATABASE_URL`, `AUTH_MOCK`, `AUTH_MOCK_OTP`, **MSG91**, **Google** (`GOOGLE_CLIENT_ID` + optional iOS/Android audiences), Apple placeholders. **No real secrets are committed.**
 
-When `AUTH_MOCK=false` and MSG91 is unset, OTP routes return **501** `sms_not_configured`. Mock mode tolerates a missing or broken `DATABASE_URL` (falls back to in-memory mock session).
+When `AUTH_MOCK=false` and MSG91 is unset, OTP routes return **501** `sms_not_configured`. Google Sign-In does **not** require flipping `AUTH_MOCK` — set `GOOGLE_CLIENT_ID` and it verifies for real while phone can stay mocked. Mock mode tolerates a missing or broken `DATABASE_URL` (falls back to in-memory mock session).
+
+## Google Sign-In
+
+Live Google is independent of `AUTH_MOCK` so phone OTP can stay on mock while Google works.
+
+| `GOOGLE_CLIENT_ID` set? | Result |
+|-------------------------|--------|
+| yes | Verify `idToken` via `google-auth-library`; upsert `users` + `auth_identities` when `DATABASE_URL` is set |
+| no + `AUTH_MOCK=true` | Deterministic mock Google session (no token validation) |
+| no + `AUTH_MOCK=false` | **501** `google_not_configured` |
+
+### Required Vercel / Expo env keys (names only)
+
+| Key | Where | Notes |
+|-----|-------|--------|
+| `GOOGLE_CLIENT_ID` | Vercel API | Web OAuth client ID (audience for ID tokens) |
+| `GOOGLE_IOS_CLIENT_ID` | Vercel API (optional) | iOS OAuth client ID if native tokens use it |
+| `GOOGLE_ANDROID_CLIENT_ID` | Vercel API (optional) | Android OAuth client ID if native tokens use it |
+| `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` | Expo | Same Web client ID as `GOOGLE_CLIENT_ID` |
+| `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID` | Expo (optional) | iOS client ID |
+| `EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID` | Expo (optional) | Android client ID |
+| `EXPO_PUBLIC_AUTH_API_URL` | Expo | e.g. `https://knowyourfood-virid.vercel.app/api` |
+
+`GOOGLE_CLIENT_SECRET` is **not** required for ID-token verification.
+
+### Operator setup (Google Cloud)
+
+1. [Google Cloud Console](https://console.cloud.google.com/) → create/select project → **APIs & Services → Credentials**.
+2. Configure **OAuth consent screen** (External / Testing is fine for smoke).
+3. **Create Credentials → OAuth client ID**:
+   - **Web application** — copy client ID → Vercel `GOOGLE_CLIENT_ID` + Expo `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`.
+   - Authorized JavaScript origins: Expo web origin (e.g. `http://localhost:8081`) and production web origin if any.
+   - Authorized redirect URIs: Expo AuthSession redirect (see Expo docs / `expo-auth-session` — typically `https://auth.expo.io/@<owner>/<slug>` for Expo Go, plus `https://localhost` / app scheme for native).
+   - Optional: **iOS** / **Android** OAuth clients for store builds; set matching `GOOGLE_*` + `EXPO_PUBLIC_GOOGLE_*` IDs.
+4. Vercel → API project → Environment Variables → set `GOOGLE_CLIENT_ID` (Production + Preview) → **Redeploy**.
+5. Health should show `"googleConfigured": true`. Keep `AUTH_MOCK=true` for phone.
 
 ## Out of scope (this scaffold)
 
-Twilio/Firebase SMS, full recipe/shopping schema, PostHog, UI redesign.
+Twilio/Firebase SMS, Apple live verify, full recipe/shopping schema, PostHog, UI redesign.

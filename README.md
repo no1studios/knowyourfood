@@ -121,6 +121,6 @@ Copy `.env.example` → `.env.local` for local keys. Do not commit secrets.
 
 ## Explicit non-goals (this slice)
 
-- Live OAuth token verify (Google/Apple still stubbed); Twilio/Firebase SMS (MSG91 is the India path)
+- Apple Sign-In live verify (still mock / 501); Twilio/Firebase SMS (MSG91 is the India path — paused while `AUTH_MOCK=true`)
 - PostHog
 - Shopping integrations / Phase 1.5 social
