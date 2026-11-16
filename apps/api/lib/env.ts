@@ -51,3 +51,51 @@ export function getDatabaseUrl(): string | undefined {
 export function isDatabaseConfigured(): boolean {
   return Boolean(getDatabaseUrl());
 }
+
+/**
+ * MSG91 SendOTP (India-first). Required for live SMS when AUTH_MOCK=false.
+ * Template ID comes from MSG91 dashboard (OTP → Templates); sender is usually
+ * baked into the template — MSG91_SENDER_ID is optional override.
+ */
+export type Msg91Config = {
+  authKey: string;
+  templateId: string;
+  senderId?: string;
+  otpLength: number;
+  otpExpiryMinutes: number;
+};
+
+export function getMsg91Config(): Msg91Config | undefined {
+  const authKey = read('MSG91_AUTH_KEY');
+  const templateId = read('MSG91_TEMPLATE_ID');
+  if (!authKey || !templateId) return undefined;
+
+  const lengthRaw = read('MSG91_OTP_LENGTH');
+  const expiryRaw = read('MSG91_OTP_EXPIRY_MINUTES');
+  const otpLength = lengthRaw ? Number.parseInt(lengthRaw, 10) : 6;
+  const otpExpiryMinutes = expiryRaw ? Number.parseInt(expiryRaw, 10) : 5;
+
+  return {
+    authKey,
+    templateId,
+    senderId: read('MSG91_SENDER_ID'),
+    otpLength:
+      Number.isFinite(otpLength) && otpLength >= 4 && otpLength <= 9
+        ? otpLength
+        : 6,
+    otpExpiryMinutes:
+      Number.isFinite(otpExpiryMinutes) && otpExpiryMinutes >= 1
+        ? otpExpiryMinutes
+        : 5,
+  };
+}
+
+/** True when MSG91 auth key + template id are set (no network call). */
+export function isMsg91Configured(): boolean {
+  return Boolean(getMsg91Config());
+}
+
+/** Live SMS is ready when MSG91 is configured. Twilio/Firebase placeholders are not wired. */
+export function isSmsConfigured(): boolean {
+  return isMsg91Configured();
+}

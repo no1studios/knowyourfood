@@ -66,7 +66,7 @@ src/theme/           # Locked DS theme (kyf-theme.ts)
 
 ## Vercel API (`apps/api`)
 
-Import the repo in Vercel with **Root Directory `apps/api`** (Framework: Next.js). See [`apps/api/README.md`](./apps/api/README.md) for env vars, mock OTP (`123456`), Neon `DATABASE_URL`, and health check.
+Import the repo in Vercel with **Root Directory `apps/api`** (Framework: Next.js). See [`apps/api/README.md`](./apps/api/README.md) for env vars, mock OTP (`123456`), Neon `DATABASE_URL`, MSG91 live SMS, and health check. Keep `AUTH_MOCK=true` until MSG91 keys are set.
 
 Local API:
 
@@ -121,6 +121,6 @@ Copy `.env.example` → `.env.local` for local keys. Do not commit secrets.
 
 ## Explicit non-goals (this slice)
 
-- Real SMS / live OAuth token verify / Postgres migrations (API is mock-ready stubs)
+- Live OAuth token verify (Google/Apple still stubbed); Twilio/Firebase SMS (MSG91 is the India path)
 - PostHog
 - Shopping integrations / Phase 1.5 social
