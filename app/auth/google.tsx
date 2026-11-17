@@ -40,9 +40,11 @@ export default function AuthGoogleScreen() {
           iosClientId: googleConfig.iosClientId,
           androidClientId: googleConfig.androidClientId,
           webClientId: googleConfig.webClientId,
+          scopes: googleConfig.scopes,
         }
       : {
           clientId: 'mock.apps.googleusercontent.com',
+          scopes: ['openid', 'profile', 'email'],
         },
   );
 

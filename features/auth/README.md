@@ -23,7 +23,7 @@ Put values in `.env` / `.env.local` (gitignored) or your Expo EAS secrets. Do no
 | Provider | Live when | Mock when |
 |----------|-----------|-----------|
 | Phone OTP | `EXPO_PUBLIC_AUTH_API_URL` set | Missing API URL or `AUTH_MOCK=true` — accept mock OTP |
-| Google | Google client ID set | Missing ID — simulated success after short delay |
+| Google | Google client ID set + `EXPO_PUBLIC_AUTH_API_URL` → AuthSession ID token → API verify | Missing ID — simulated success (API mock exchange when URL set) |
 | Apple | iOS + Apple Sign-In available | Non-iOS hidden; unavailable / cancel→error; `__DEV__` capability miss → mock |
 
 Session persists in SecureStore (native) or AsyncStorage (web) under `kyf.auth.session.v1`. After success the app opens the existing guest→account **merge** stub.

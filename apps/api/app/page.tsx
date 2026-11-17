@@ -16,8 +16,9 @@ export default function HomePage() {
         <li>POST /api/auth/oauth/google | apple</li>
       </ul>
       <p style={{ color: '#666', fontSize: '0.9rem' }}>
-        Default <code>AUTH_MOCK=true</code> — use OTP <strong>123456</strong> until SMS/OAuth
-        providers are configured.
+        Default <code>AUTH_MOCK=true</code> — use OTP <strong>123456</strong> for phone.
+        Google verifies ID tokens when <code>GOOGLE_CLIENT_ID</code> is set (independent of
+        mock).
       </p>
     </main>
   );

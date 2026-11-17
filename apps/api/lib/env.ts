@@ -99,3 +99,24 @@ export function isMsg91Configured(): boolean {
 export function isSmsConfigured(): boolean {
   return isMsg91Configured();
 }
+
+/**
+ * Google Sign-In — server audiences for ID token verify.
+ * Accept tokens issued to any of these OAuth client IDs (web / iOS / Android).
+ * GOOGLE_CLIENT_ID is the primary/web client; platform IDs are optional extras.
+ * Client secret is NOT required for ID-token verification.
+ */
+export function getGoogleAudiences(): string[] {
+  const ids = [
+    read('GOOGLE_CLIENT_ID'),
+    read('GOOGLE_WEB_CLIENT_ID'),
+    read('GOOGLE_IOS_CLIENT_ID'),
+    read('GOOGLE_ANDROID_CLIENT_ID'),
+  ].filter((v): v is string => Boolean(v));
+  return [...new Set(ids)];
+}
+
+/** True when at least one Google OAuth client ID is set (no network call). */
+export function isGoogleConfigured(): boolean {
+  return getGoogleAudiences().length > 0;
+}

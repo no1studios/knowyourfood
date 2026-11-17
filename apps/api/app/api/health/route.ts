@@ -1,5 +1,10 @@
 import { pingDatabase } from '@/lib/db';
-import { isAuthMock, isDatabaseConfigured, isSmsConfigured } from '@/lib/env';
+import {
+  isAuthMock,
+  isDatabaseConfigured,
+  isGoogleConfigured,
+  isSmsConfigured,
+} from '@/lib/env';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -12,6 +17,7 @@ export async function GET() {
     service: 'knowyourfood-api',
     authMock: isAuthMock(),
     smsConfigured: isSmsConfigured(),
+    googleConfigured: isGoogleConfigured(),
     databaseConfigured,
     timestamp: new Date().toISOString(),
   };
