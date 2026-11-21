@@ -95,7 +95,7 @@ EXPO_PUBLIC_AUTH_API_URL=https://<deployment>.vercel.app/api
 | `/recipe/[id]` | 06 Recipe detail |
 | `/recipe/[id]/share` | 06b ShareSheet |
 | `/recipe/[id]/edit` | 07 Recipe editor |
-| `/auth/phone` · `/otp` · `/google` · `/apple` | 09 + guest B1–B4 |
+| `/auth/phone` · `/otp` · `/google` · `/apple` · `/add-phone` | 09 + guest B1–B4; Profile Add phone (link OTP) |
 | `/account-prompt?variant=` | Guest A1–A6 |
 | `/merge?variant=` | 11 + guest C1–C4 |
 | `/shared/[slug]` | 13 Shared recipe preview |

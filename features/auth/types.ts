@@ -29,6 +29,11 @@ export type OtpVerifyRequest = {
   verificationId: string;
   code: string;
   phoneE164?: string;
+  /**
+   * When set, verify links the phone onto this existing user (Profile “Add phone”)
+   * instead of replacing the session with a phone-only sign-in.
+   */
+  linkUserId?: string;
 };
 
 export type OAuthRequest = { provider: 'google' | 'apple' };
@@ -47,6 +52,14 @@ export interface AuthClient {
   getSession(): Promise<AuthSession | null>;
   startPhoneOtp(req: OtpStartRequest): Promise<OtpStartResult>;
   verifyPhoneOtp(req: OtpVerifyRequest): Promise<AuthSession>;
+  /**
+   * OTP-verify a phone and merge it onto the current signed-in session
+   * (keeps Google/Apple provider + userId; sets phoneE164).
+   */
+  linkPhoneToSession(
+    req: OtpVerifyRequest,
+    current: AuthSession,
+  ): Promise<AuthSession>;
   signInWithOAuth(req: OAuthRequest): Promise<AuthSession>;
   continueAsGuest(): Promise<AuthSession>;
   signOut(): Promise<void>;
