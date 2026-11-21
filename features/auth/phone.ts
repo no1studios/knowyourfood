@@ -67,6 +67,7 @@ export async function verifyPhoneOtp(args: {
   verificationId: string;
   code: string;
   phoneE164?: string;
+  linkUserId?: string;
 }): Promise<AuthSession> {
   const code = args.code.replace(/\D/g, '');
   if (code.length !== 6) {
@@ -74,9 +75,14 @@ export async function verifyPhoneOtp(args: {
   }
 
   const config = getAuthPublicConfig();
-  const mock = args.verificationId.startsWith('mock_') || !isPhoneLive(config);
+  // Link flows always hit the API when configured so `linkUserId` can persist.
+  // Sign-in still short-circuits local mock when verificationId is mock_* and phone isn't live.
+  const useApi =
+    Boolean(config.apiBaseUrl) &&
+    (Boolean(args.linkUserId) ||
+      (isPhoneLive(config) && !args.verificationId.startsWith('mock_')));
 
-  if (mock) {
+  if (!useApi) {
     if (code !== config.mockOtp) {
       throw new AuthError(
         'invalid_code',
@@ -90,7 +96,7 @@ export async function verifyPhoneOtp(args: {
         : undefined);
     const now = new Date().toISOString();
     return {
-      userId: `phone_${(phoneE164 || 'unknown').replace(/\D/g, '')}`,
+      userId: args.linkUserId ?? `phone_${(phoneE164 || 'unknown').replace(/\D/g, '')}`,
       provider: 'phone',
       isGuest: false,
       phoneE164,
@@ -106,28 +112,66 @@ export async function verifyPhoneOtp(args: {
       verificationId: args.verificationId,
       code,
       phoneE164: args.phoneE164,
+      linkUserId: args.linkUserId,
     }),
   });
 
-  if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    throw new AuthError('otp_verify_failed', text || `OTP verify failed (${res.status})`);
-  }
-
-  const data = (await res.json()) as {
+  const data = (await res.json().catch(() => ({}))) as {
     userId?: string;
     phoneE164?: string;
     idToken?: string;
+    linked?: boolean;
+    error?: string;
+    message?: string;
   };
+
+  if (!res.ok) {
+    throw new AuthError(
+      data.error ?? 'otp_verify_failed',
+      data.message || `OTP verify failed (${res.status})`,
+    );
+  }
 
   const phoneE164 = data.phoneE164 || args.phoneE164;
   return {
-    userId: data.userId ?? `phone_${(phoneE164 || 'user').replace(/\D/g, '')}`,
+    userId:
+      data.userId ??
+      args.linkUserId ??
+      `phone_${(phoneE164 || 'user').replace(/\D/g, '')}`,
     provider: 'phone',
     isGuest: false,
     phoneE164,
     providerSubject: phoneE164,
     idToken: data.idToken,
+    issuedAt: new Date().toISOString(),
+  };
+}
+
+/**
+ * Verify OTP and merge phone onto an existing Google/Apple session.
+ * Keeps provider, email, displayName, and userId from `current`.
+ */
+export async function linkPhoneToSession(
+  args: {
+    verificationId: string;
+    code: string;
+    phoneE164?: string;
+  },
+  current: AuthSession,
+): Promise<AuthSession> {
+  if (current.isGuest || !current.userId) {
+    throw new AuthError('not_signed_in', 'Sign in before adding a phone number');
+  }
+
+  const verified = await verifyPhoneOtp({
+    ...args,
+    linkUserId: current.userId,
+  });
+
+  return {
+    ...current,
+    userId: verified.userId || current.userId,
+    phoneE164: verified.phoneE164 ?? args.phoneE164,
     issuedAt: new Date().toISOString(),
   };
 }

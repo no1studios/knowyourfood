@@ -17,6 +17,8 @@ export type OtpVerifyBody = {
   verificationId?: string;
   code?: string;
   phoneE164?: string;
+  /** When set, OTP verify links the phone onto this existing user instead of creating one. */
+  linkUserId?: string;
 };
 
 export type OAuthBody = {

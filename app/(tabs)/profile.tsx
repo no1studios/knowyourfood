@@ -7,6 +7,7 @@ import { useLocale } from '@/components/LocaleProvider';
 import { useTheme } from '@/components/ThemeProvider';
 import { AppHeader, Button, ListRow } from '@/components/ui';
 import type { AuthSession } from '@/features/auth';
+import { formatPhoneDisplay } from '@/features/auth';
 import { copy } from '@/lib/i18n/copy';
 
 /** True when guest-store flag OR persisted auth session says signed in. */
@@ -18,7 +19,7 @@ function resolveSignedIn(signedIn: boolean, authSession: AuthSession | null) {
 /**
  * Profile route: `app/(tabs)/profile.tsx` (tab name `profile`).
  * Guest: unmistakable ACCOUNT invite card (not a ListRow phone row).
- * Signed in: account row + Sign out.
+ * Signed in: account row + linked phone / Add phone + Sign out.
  */
 export default function ProfileScreen() {
   const { colors, type, space, radius, elevation } = useTheme();
@@ -55,10 +56,21 @@ export default function ProfileScreen() {
           : c.auth.accountGeneric;
 
   const accountSubtitle =
-    authSession?.phoneE164 ||
-    authSession?.email ||
-    authSession?.displayName ||
-    undefined;
+    [authSession?.displayName, authSession?.email].filter(Boolean).join(' · ') ||
+    (provider === 'phone' && authSession?.phoneE164
+      ? formatPhoneDisplay(authSession.phoneE164)
+      : undefined);
+
+  const linkedPhone = authSession?.phoneE164
+    ? formatPhoneDisplay(authSession.phoneE164)
+    : null;
+
+  /** SSO users without a phone can Add phone; phone-only sign-in already has one. */
+  const canAddPhone =
+    isSignedIn &&
+    Boolean(authSession && !authSession.isGuest) &&
+    !authSession?.phoneE164 &&
+    (provider === 'google' || provider === 'apple');
 
   const onSignOut = async () => {
     await signOut();
@@ -98,6 +110,23 @@ export default function ProfileScreen() {
                     title={accountTitle}
                     subtitle={accountSubtitle}
                   />
+                  {provider !== 'phone' && linkedPhone ? (
+                    <ListRow
+                      icon="phone"
+                      iconTone="sky"
+                      title={c.auth.linkedPhone}
+                      subtitle={linkedPhone}
+                    />
+                  ) : canAddPhone ? (
+                    <ListRow
+                      icon="phone"
+                      iconTone="sky"
+                      title={c.auth.addPhone}
+                      subtitle={c.auth.addPhoneSub}
+                      chevron
+                      onPress={() => router.push('/auth/add-phone')}
+                    />
+                  ) : null}
                 </View>
                 <Button variant="secondary" block onPress={() => void onSignOut()}>
                   {c.auth.signOut}
