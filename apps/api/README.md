@@ -111,6 +111,7 @@ With `AUTH_MOCK=true` (default):
 |------|---------|--------|
 | Start | `POST /api/auth/otp/start` `{ "phoneE164": "+919876543210" }` | Returns `verificationId`, `mock: true`. **No SMS sent.** |
 | Verify | `POST /api/auth/otp/verify` `{ "verificationId", "code": "123456", "phoneE164?" }` | Code must match `AUTH_MOCK_OTP` (default **123456**). With `DATABASE_URL` + `phoneE164`, upserts user and returns DB `userId`. |
+| Verify + link | Same body + `"linkUserId": "<existing user uuid>"` | After OTP OK, links `phone` identity onto that user (Profile “Add phone”). Does **not** create a duplicate user. `409 phone_in_use` if the number belongs to someone else. |
 | OAuth Google | `POST /api/auth/oauth/google` `{ "idToken" }` | Verifies Google ID token when `GOOGLE_CLIENT_ID` is set; else mock session if `AUTH_MOCK`. Upserts Neon when `DATABASE_URL` is set. |
 | OAuth Apple | `POST /api/auth/oauth/apple` | Mock session if `AUTH_MOCK`; else **501** (not wired). |
 
@@ -134,7 +135,7 @@ curl -s -X POST http://localhost:3000/api/auth/otp/verify \
 |--------|------|---------|
 | `GET` | `/api/health` | Deploy check (`authMock`, `smsConfigured`, `googleConfigured`, `databaseConfigured`, live DB ping) |
 | `POST` | `/api/auth/otp/start` | Start phone OTP (+91) — mock or MSG91 SendOTP |
-| `POST` | `/api/auth/otp/verify` | Verify OTP → session (+ DB upsert when configured) |
+| `POST` | `/api/auth/otp/verify` | Verify OTP → session (+ DB upsert, or **link** to `linkUserId` when set) |
 | `POST` | `/api/auth/oauth/[provider]` | `google` (ID token verify + upsert) \| `apple` (mock / 501) |
 
 ## Schema

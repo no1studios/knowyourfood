@@ -5,7 +5,7 @@
 import { signInWithApple } from './apple';
 import { getAuthCapabilities } from './config';
 import { signInWithGoogle, type GoogleAuthRequestHelpers } from './google';
-import { startPhoneOtp, verifyPhoneOtp } from './phone';
+import { linkPhoneToSession, startPhoneOtp, verifyPhoneOtp } from './phone';
 import { authSessionStore } from './session';
 import {
   AuthError,
@@ -57,6 +57,14 @@ export const authClient: AuthClient = {
 
   async verifyPhoneOtp(req: OtpVerifyRequest): Promise<AuthSession> {
     const session = await verifyPhoneOtp(req);
+    return persist(session);
+  },
+
+  async linkPhoneToSession(
+    req: OtpVerifyRequest,
+    current: AuthSession,
+  ): Promise<AuthSession> {
+    const session = await linkPhoneToSession(req, current);
     return persist(session);
   },
 

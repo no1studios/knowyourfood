@@ -318,6 +318,19 @@ export function copy(locale: AppLocale) {
         'Your recipes stay on this phone. Sign in to sync and keep them safe if you change devices.',
         'आपकी रेसिपी इस फ़ोन पर रहेंगी। साइन इन करें ताकि सिंक हों और फ़ोन बदलने पर भी सुरक्षित रहें।',
       ),
+      addPhone: x('Add phone', 'फ़ोन जोड़ें'),
+      addPhoneSub: x(
+        'Link a +91 number to this account',
+        'इस खाते से +91 नंबर जोड़ें',
+      ),
+      linkedPhone: x('Phone', 'फ़ोन'),
+      addPhoneTitle: x('Add your phone', 'अपना फ़ोन जोड़ें'),
+      addPhoneBody: x(
+        'We’ll verify a +91 number and link it to this Google account.',
+        'हम +91 नंबर की पुष्टि करके इसे इस Google खाते से जोड़ेंगे।',
+      ),
+      addPhoneSend: x('Send code', 'कोड भेजें'),
+      phoneLinkedToast: x('Phone linked to your account', 'फ़ोन आपके खाते से जुड़ गया'),
     },
     otp: {
       title: x('Enter the code', 'कोड डालें'),
@@ -336,6 +349,7 @@ export function copy(locale: AppLocale) {
       helperReady: x('Tap to resend code', 'कोड दोबारा भेजने के लिए टैप करें'),
       incomplete: x('Enter all 6 digits', 'सभी 6 अंक डालें'),
       cta: x('Verify and continue', 'पुष्टि करें और जारी रखें'),
+      ctaLink: x('Verify and add phone', 'पुष्टि करें और फ़ोन जोड़ें'),
       change: x('Change number', 'नंबर बदलें'),
       resend: x('Resend code', 'कोड दोबारा भेजें'),
     },

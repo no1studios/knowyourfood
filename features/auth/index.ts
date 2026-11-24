@@ -22,7 +22,11 @@ export {
   isPhoneLive,
   resolveGoogleClientId,
 } from './config';
-export { formatPhoneDisplay, normalizeIndiaPhone } from './phone';
+export {
+  formatPhoneDisplay,
+  linkPhoneToSession,
+  normalizeIndiaPhone,
+} from './phone';
 export { getGoogleAuthRequestConfig, Google } from './google';
 export { isAppleSignInAvailable } from './apple';
 export { authSessionStore } from './session';

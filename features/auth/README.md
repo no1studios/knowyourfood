@@ -28,6 +28,17 @@ Put values in `.env` / `.env.local` (gitignored) or your Expo EAS secrets. Do no
 
 Session persists in SecureStore (native) or AsyncStorage (web) under `kyf.auth.session.v1`. After success the app opens the existing guest→account **merge** stub.
 
+### Profile — Add phone (Google / Apple)
+
+Signed-in SSO users without a phone see **Add phone** on Profile (screen 12 ListRows). Flow:
+
+1. Profile → **Add phone** → `/auth/add-phone`
+2. Enter +91 → **Send code** → OTP (`mode=link`)
+3. Enter mock OTP `123456` → phone identity linked to the **same** user/session (provider stays Google/Apple; `phoneE164` is set)
+4. Profile refreshes with the linked phone row
+
+API: `POST …/auth/otp/verify` with `linkUserId` (existing session `userId`). Live SMS stays off while `AUTH_MOCK=true`.
+
 ## Test without keys
 
 1. `npx expo start` → open web or device
@@ -35,3 +46,4 @@ Session persists in SecureStore (native) or AsyncStorage (web) under `kyf.auth.s
 3. Enter OTP `123456` → merge modal → confirm → signed-in (banner suppressed)
 4. Or **Continue with Google** (mock) / on iOS **Continue with Apple**
 5. **Continue as guest** / **Not now** leave guest store unsigned
+6. After Google mock sign-in → Profile → **Add phone** → OTP `123456` → linked phone on Profile

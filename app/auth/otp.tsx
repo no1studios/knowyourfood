@@ -16,22 +16,26 @@ import {
 } from '@/features/auth';
 import { copy } from '@/lib/i18n/copy';
 
-/** Artboard 09 / guest B2 — OTP 6 digit cells; auto-verify when complete. */
+/** Artboard 09 / guest B2 — OTP 6 digit cells; auto-verify when complete.
+ *  `mode=link` = Profile Add phone (merge onto Google/Apple session). */
 export default function AuthOtpScreen() {
   const {
     verificationId = '',
     phoneE164 = '',
     mock: mockParam = '0',
+    mode: modeParam = '',
   } = useLocalSearchParams<{
     verificationId?: string;
     phoneE164?: string;
     mock?: string;
+    mode?: string;
   }>();
   const { locale } = useLocale();
   const { colors, type, space, radius } = useTheme();
   const insets = useSafeAreaInsets();
-  const { applyAuthSession } = useGuestSession();
+  const { applyAuthSession, authSession, showToast } = useGuestSession();
   const c = copy(locale);
+  const isLinkMode = modeParam === 'link';
   const isMock = mockParam === '1' || verificationId.startsWith('mock_');
   const mockOtp = getAuthPublicConfig().mockOtp;
 
@@ -79,6 +83,24 @@ export default function AuthOtpScreen() {
       setBusy(true);
       setError(null);
       try {
+        if (isLinkMode) {
+          if (!authSession || authSession.isGuest || !authSession.userId) {
+            throw new AuthError('not_signed_in', c.auth.errorGeneric);
+          }
+          const session = await authClient.linkPhoneToSession(
+            {
+              verificationId: activeVerificationId,
+              code,
+              phoneE164: phoneE164 || undefined,
+            },
+            authSession,
+          );
+          await applyAuthSession(session);
+          showToast(c.auth.phoneLinkedToast);
+          router.replace('/(tabs)/profile');
+          return;
+        }
+
         const session = await authClient.verifyPhoneOtp({
           verificationId: activeVerificationId,
           code,
@@ -102,10 +124,14 @@ export default function AuthOtpScreen() {
     [
       activeVerificationId,
       applyAuthSession,
+      authSession,
       c.auth.errorGeneric,
+      c.auth.phoneLinkedToast,
       c.otp.incomplete,
       digits,
+      isLinkMode,
       phoneE164,
+      showToast,
     ],
   );
 
@@ -275,9 +301,16 @@ export default function AuthOtpScreen() {
             disabled={busy}
             onPress={() => void verify()}
           >
-            {c.otp.cta}
+            {isLinkMode ? c.otp.ctaLink : c.otp.cta}
           </Button>
-          <Button variant="ghost" block disabled={busy} onPress={() => router.replace('/auth/phone')}>
+          <Button
+            variant="ghost"
+            block
+            disabled={busy}
+            onPress={() =>
+              router.replace(isLinkMode ? '/auth/add-phone' : '/auth/phone')
+            }
+          >
             {c.otp.change}
           </Button>
         </View>
