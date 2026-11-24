@@ -5,6 +5,7 @@
 
 import { createHash, randomBytes } from 'crypto';
 
+import { withCors } from './cors';
 import { getMockOtp, isAuthMock } from './env';
 
 const INDIA_E164 = /^\+91[6-9]\d{9}$/;
@@ -153,13 +154,19 @@ export class AuthHttpError extends Error {
   }
 }
 
-export function jsonError(err: unknown): Response {
+export function jsonError(err: unknown, request?: Request): Response {
+  let response: Response;
   if (err instanceof AuthHttpError) {
-    return Response.json(
+    response = Response.json(
       { error: err.code, message: err.message, mock: isAuthMock() },
       { status: err.status },
     );
+  } else {
+    const message = err instanceof Error ? err.message : 'Internal error';
+    response = Response.json(
+      { error: 'internal_error', message },
+      { status: 500 },
+    );
   }
-  const message = err instanceof Error ? err.message : 'Internal error';
-  return Response.json({ error: 'internal_error', message }, { status: 500 });
+  return request ? withCors(request, response) : response;
 }

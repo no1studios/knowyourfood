@@ -1,3 +1,4 @@
+import { corsPreflight, withCors } from '@/lib/cors';
 import { sanitizeDbError } from '@/lib/db-errors';
 import {
   isAuthMock,
@@ -22,6 +23,11 @@ type RouteContext = {
 };
 
 const SUPPORTED = new Set(['google', 'apple']);
+
+/** Browser preflight from Expo web (localhost:8081/8082 → Vercel). */
+export function OPTIONS(request: Request) {
+  return corsPreflight(request);
+}
 
 /**
  * POST /api/auth/oauth/[provider]
@@ -73,9 +79,12 @@ export async function POST(request: Request, context: RouteContext) {
       );
     }
 
-    return Response.json(await maybePersistOAuth(typed, session, body));
+    return withCors(
+      request,
+      Response.json(await maybePersistOAuth(typed, session, body)),
+    );
   } catch (err) {
-    return jsonError(err);
+    return jsonError(err, request);
   }
 }
 

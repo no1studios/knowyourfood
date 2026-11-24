@@ -1,3 +1,4 @@
+import { corsPreflight, withCors } from '@/lib/cors';
 import { sanitizeDbError } from '@/lib/db-errors';
 import { isDatabaseConfigured, isAuthMock, isSmsConfigured } from '@/lib/env';
 import {
@@ -12,6 +13,11 @@ import { linkPhoneIdentity, upsertPhoneUser } from '@/lib/users';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+
+/** Browser preflight from Expo web (localhost:8081/8082 → Vercel). */
+export function OPTIONS(request: Request) {
+  return corsPreflight(request);
+}
 
 /**
  * POST /api/auth/otp/verify
@@ -82,15 +88,18 @@ export async function POST(request: Request) {
             userId: linkUserId,
             phoneE164: session.phoneE164,
           });
-          return Response.json({
-            ...session,
-            userId: user.id,
-            phoneE164: user.phoneE164 ?? session.phoneE164,
-            email: user.email ?? session.email,
-            displayName: user.displayName ?? session.displayName,
-            linked: true,
-            persisted: true,
-          });
+          return withCors(
+            request,
+            Response.json({
+              ...session,
+              userId: user.id,
+              phoneE164: user.phoneE164 ?? session.phoneE164,
+              email: user.email ?? session.email,
+              displayName: user.displayName ?? session.displayName,
+              linked: true,
+              persisted: true,
+            }),
+          );
         } catch (dbErr) {
           // Hard conflicts (phone owned by another account) always surface.
           if (dbErr instanceof AuthHttpError && dbErr.code === 'phone_in_use') {
@@ -103,13 +112,16 @@ export async function POST(request: Request) {
             dbErr instanceof AuthHttpError &&
             (dbErr.code === 'user_not_found' || dbErr.code === 'invalid_user')
           ) {
-            return Response.json({
-              ...session,
-              userId: linkUserId,
-              linked: true,
-              persisted: false,
-              persistError: { code: dbErr.code, message: dbErr.message },
-            });
+            return withCors(
+              request,
+              Response.json({
+                ...session,
+                userId: linkUserId,
+                linked: true,
+                persisted: false,
+                persistError: { code: dbErr.code, message: dbErr.message },
+              }),
+            );
           }
           if (dbErr instanceof AuthHttpError) {
             throw dbErr;
@@ -122,41 +134,50 @@ export async function POST(request: Request) {
             persistError.causeCode ?? '',
           );
           if (isAuthMock()) {
-            return Response.json({
-              ...session,
-              userId: linkUserId,
-              linked: true,
-              persisted: false,
-              persistError,
-            });
+            return withCors(
+              request,
+              Response.json({
+                ...session,
+                userId: linkUserId,
+                linked: true,
+                persisted: false,
+                persistError,
+              }),
+            );
           }
           throw dbErr;
         }
       }
 
-      return Response.json({
-        ...session,
-        userId: linkUserId,
-        linked: true,
-        persisted: false,
-        persistError: {
-          code: 'db_not_configured',
-          message: 'DATABASE_URL is not set',
-        },
-      });
+      return withCors(
+        request,
+        Response.json({
+          ...session,
+          userId: linkUserId,
+          linked: true,
+          persisted: false,
+          persistError: {
+            code: 'db_not_configured',
+            message: 'DATABASE_URL is not set',
+          },
+        }),
+      );
     }
 
     // Persist when Neon/Postgres is attached. AUTH_MOCK still works with no DB.
     if (isDatabaseConfigured() && session.phoneE164) {
       try {
         const user = await upsertPhoneUser(session.phoneE164);
-        return Response.json({
-          ...session,
-          userId: user.id,
-          phoneE164: user.phoneE164 ?? session.phoneE164,
-          displayName: user.displayName ?? undefined,
-          persisted: true,
-        });
+        return withCors(
+          request,
+          Response.json({
+            ...session,
+            userId: user.id,
+            phoneE164: user.phoneE164 ?? session.phoneE164,
+            displayName: user.displayName ?? undefined,
+            persisted: true,
+          }),
+        );
       } catch (dbErr) {
         const persistError = sanitizeDbError(dbErr);
         // AUTH_MOCK must still return a session (Expo smoke), but never hide the
@@ -168,24 +189,30 @@ export async function POST(request: Request) {
           persistError.causeCode ?? '',
         );
         if (isAuthMock()) {
-          return Response.json({
-            ...session,
-            persisted: false,
-            persistError,
-          });
+          return withCors(
+            request,
+            Response.json({
+              ...session,
+              persisted: false,
+              persistError,
+            }),
+          );
         }
         throw dbErr;
       }
     }
 
-    return Response.json({
-      ...session,
-      persisted: false,
-      persistError: isDatabaseConfigured()
-        ? { code: 'phone_required', message: 'phoneE164 required to persist' }
-        : { code: 'db_not_configured', message: 'DATABASE_URL is not set' },
-    });
+    return withCors(
+      request,
+      Response.json({
+        ...session,
+        persisted: false,
+        persistError: isDatabaseConfigured()
+          ? { code: 'phone_required', message: 'phoneE164 required to persist' }
+          : { code: 'db_not_configured', message: 'DATABASE_URL is not set' },
+      }),
+    );
   } catch (err) {
-    return jsonError(err);
+    return jsonError(err, request);
   }
 }

@@ -28,6 +28,10 @@ EXPO_PUBLIC_AUTH_API_URL=https://<deployment>.vercel.app/api
 
 The client calls `{EXPO_PUBLIC_AUTH_API_URL}/auth/otp/start` → `/api/auth/otp/start` on this app.
 
+### CORS (Expo web)
+
+Auth routes (`/api/auth/otp/*`, `/api/auth/oauth/*`) answer browser **OPTIONS** preflight and echo `Access-Control-Allow-Origin` for allowed origins (not `*`). Built-in allowlist includes `http://localhost:8081`, `http://localhost:8082`, and matching `127.0.0.1` / classic `19006` ports. Add production Expo web origins via Vercel env `CORS_ALLOWED_ORIGINS` (comma-separated), then redeploy.
+
 ## Attach Neon (Postgres)
 
 Do this once so OTP verify can persist `users` + `auth_identities`. You never need to paste the connection string into chat — only into Neon → Vercel.
@@ -147,7 +151,7 @@ curl -s -X POST http://localhost:3000/api/auth/otp/verify \
 
 ## Env vars
 
-See [`.env.example`](./.env.example): `DATABASE_URL`, `AUTH_MOCK`, `AUTH_MOCK_OTP`, **MSG91**, **Google** (`GOOGLE_CLIENT_ID` + optional iOS/Android audiences), Apple placeholders. **No real secrets are committed.**
+See [`.env.example`](./.env.example): `DATABASE_URL`, `AUTH_MOCK`, `AUTH_MOCK_OTP`, `CORS_ALLOWED_ORIGINS`, **MSG91**, **Google** (`GOOGLE_CLIENT_ID` + optional iOS/Android audiences), Apple placeholders. **No real secrets are committed.**
 
 When `AUTH_MOCK=false` and MSG91 is unset, OTP routes return **501** `sms_not_configured`. Google Sign-In does **not** require flipping `AUTH_MOCK` — set `GOOGLE_CLIENT_ID` and it verifies for real while phone can stay mocked. Mock mode tolerates a missing or broken `DATABASE_URL` (falls back to in-memory mock session).
 

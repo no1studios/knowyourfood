@@ -1,3 +1,4 @@
+import { corsPreflight, withCors } from '@/lib/cors';
 import { isAuthMock, isSmsConfigured } from '@/lib/env';
 import {
   AuthHttpError,
@@ -10,6 +11,11 @@ import { msg91SendOtp } from '@/lib/msg91';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+
+/** Browser preflight from Expo web (localhost:8081/8082 → Vercel). */
+export function OPTIONS(request: Request) {
+  return corsPreflight(request);
+}
 
 /**
  * POST /api/auth/otp/start
@@ -28,7 +34,7 @@ export async function POST(request: Request) {
     const phoneE164 = normalizeIndiaPhone(body.phoneE164);
 
     if (isAuthMock()) {
-      return Response.json(mockStartOtp(phoneE164));
+      return withCors(request, Response.json(mockStartOtp(phoneE164)));
     }
 
     if (!isSmsConfigured()) {
@@ -40,8 +46,8 @@ export async function POST(request: Request) {
     }
 
     const result = await msg91SendOtp(phoneE164);
-    return Response.json(result);
+    return withCors(request, Response.json(result));
   } catch (err) {
-    return jsonError(err);
+    return jsonError(err, request);
   }
 }
