@@ -4,19 +4,20 @@
     "slug": "knowyourfood",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/brand/app-icon-1024.png",
     "scheme": "knowyourfood",
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "app.knowyourfood"
+      "bundleIdentifier": "app.knowyourfood",
+      "icon": "./assets/brand/app-icon-1024.png"
     },
     "android": {
       "adaptiveIcon": {
+        "foregroundImage": "./assets/brand/adaptive-foreground-1024.png",
+        "backgroundImage": "./assets/brand/adaptive-background-1024.png",
         "backgroundColor": "#f7f6f2",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+        "monochromeImage": "./assets/brand/adaptive-monochrome-1024.png"
       },
       "predictiveBackGestureEnabled": false,
       "package": "app.knowyourfood"
@@ -24,7 +25,7 @@
     "web": {
       "bundler": "metro",
       "output": "single",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/brand/favicon-48.png"
     },
     "plugins": [
       "expo-router",
@@ -33,9 +34,14 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
+          "image": "./assets/brand/splash-mark-1024.png",
+          "imageWidth": 160,
           "resizeMode": "contain",
-          "backgroundColor": "#f7f6f2"
+          "backgroundColor": "#f7f6f2",
+          "dark": {
+            "image": "./assets/brand/splash-mark-dark-1024.png",
+            "backgroundColor": "#121411"
+          }
         }
       ],
       "expo-secure-store"

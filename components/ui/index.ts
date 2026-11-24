@@ -1,5 +1,6 @@
 export { AccountPrompt } from './AccountPrompt';
 export { AppHeader } from './AppHeader';
+export { BrandMark } from './BrandMark';
 export { Button } from './Button';
 export { Checkbox } from './Checkbox';
 export { Chip } from './Chip';
