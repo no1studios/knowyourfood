@@ -1,6 +1,10 @@
 /**
- * Vercel API client interfaces only — no network calls yet.
+ * Vercel API client — recipes sync when signed in; share/merge stubs remain.
  */
+
+import { getAuthPublicConfig } from '@/features/auth/config';
+import type { AuthSession } from '@/features/auth/types';
+import type { GuestRecipe } from '@/lib/guest-store';
 
 export type SyncStatus = 'local' | 'pending' | 'synced';
 
@@ -17,27 +21,125 @@ export type GuestMergeRequest = {
 
 export type ShareCreateResult = { url: string; slug: string };
 
+export type CloudRecipe = {
+  id: string;
+  ownerUserId: string;
+  title: string;
+  payload: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
+};
+
 export interface ApiClient {
-  listRecipes(): Promise<RecipeDraft[]>;
-  getRecipe(id: string): Promise<RecipeDraft | null>;
-  createRecipe(draft: RecipeDraft): Promise<RecipeDraft>;
+  listRecipes(session: AuthSession): Promise<CloudRecipe[]>;
+  getRecipe(session: AuthSession, id: string): Promise<CloudRecipe | null>;
+  upsertRecipe(
+    session: AuthSession,
+    recipe: GuestRecipe,
+    deviceId: string,
+  ): Promise<CloudRecipe>;
+  deleteRecipe(
+    session: AuthSession,
+    id: string,
+    updatedAt?: string,
+  ): Promise<CloudRecipe>;
   importRecipe(payload: { text?: string; url?: string }): Promise<RecipeDraft>;
   mergeGuest(req: GuestMergeRequest): Promise<{ recipeCount: number }>;
   createShare(recipeId: string): Promise<ShareCreateResult>;
   getShared(slug: string): Promise<RecipeDraft | null>;
 }
 
-/** Stub — returns empty / throws for writes. */
+function baseUrl(): string {
+  const url = getAuthPublicConfig().apiBaseUrl?.replace(/\/$/, '');
+  if (!url) throw new Error('EXPO_PUBLIC_AUTH_API_URL is not set');
+  return url;
+}
+
+function headers(session: AuthSession): HeadersInit {
+  const h: Record<string, string> = {
+    Accept: 'application/json',
+    'Content-Type': 'application/json',
+  };
+  const token = session.idToken || `mock_session_${session.userId}`;
+  h.Authorization = `Bearer ${token}`;
+  if (session.userId) h['X-KYF-User-Id'] = session.userId;
+  return h;
+}
+
 export const apiClient: ApiClient = {
-  async listRecipes() {
-    return [];
+  async listRecipes(session) {
+    const res = await fetch(`${baseUrl()}/recipes?includeDeleted=1`, {
+      headers: headers(session),
+    });
+    const data = (await res.json().catch(() => ({}))) as {
+      recipes?: CloudRecipe[];
+      message?: string;
+    };
+    if (!res.ok) throw new Error(data.message || `listRecipes ${res.status}`);
+    return data.recipes ?? [];
   },
-  async getRecipe() {
-    return null;
+
+  async getRecipe(session, id) {
+    const res = await fetch(`${baseUrl()}/recipes/${encodeURIComponent(id)}`, {
+      headers: headers(session),
+    });
+    if (res.status === 404) return null;
+    const data = (await res.json().catch(() => ({}))) as {
+      recipe?: CloudRecipe;
+      message?: string;
+    };
+    if (!res.ok) throw new Error(data.message || `getRecipe ${res.status}`);
+    return data.recipe ?? null;
   },
-  async createRecipe() {
-    throw new Error('API createRecipe not implemented (scaffold stub)');
+
+  async upsertRecipe(session, recipe, deviceId) {
+    const { syncStatus: _s, ...payload } = recipe;
+    const res = await fetch(`${baseUrl()}/recipes`, {
+      method: 'POST',
+      headers: headers(session),
+      body: JSON.stringify({
+        id: recipe.id,
+        title: recipe.title,
+        deviceId,
+        importSource: recipe.importSource,
+        importRef: recipe.importRef ?? null,
+        createdAt: recipe.createdAt,
+        updatedAt: recipe.updatedAt,
+        deletedAt: recipe.deletedAt ?? null,
+        payload,
+        recipe: payload,
+      }),
+    });
+    const data = (await res.json().catch(() => ({}))) as {
+      recipe?: CloudRecipe;
+      message?: string;
+    };
+    if (!res.ok || !data.recipe) {
+      throw new Error(data.message || `upsertRecipe ${res.status}`);
+    }
+    return data.recipe;
   },
+
+  async deleteRecipe(session, id, updatedAt) {
+    const q = updatedAt ? `?updatedAt=${encodeURIComponent(updatedAt)}` : '';
+    const res = await fetch(
+      `${baseUrl()}/recipes/${encodeURIComponent(id)}${q}`,
+      {
+        method: 'DELETE',
+        headers: headers(session),
+      },
+    );
+    const data = (await res.json().catch(() => ({}))) as {
+      recipe?: CloudRecipe;
+      message?: string;
+    };
+    if (!res.ok || !data.recipe) {
+      throw new Error(data.message || `deleteRecipe ${res.status}`);
+    }
+    return data.recipe;
+  },
+
   async importRecipe() {
     throw new Error('API importRecipe not implemented (scaffold stub)');
   },

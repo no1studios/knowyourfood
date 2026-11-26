@@ -48,6 +48,9 @@ export default function MyRecipesScreen() {
     seedDemoData,
     claimMerge,
     shoppingItems,
+    recipesSynced,
+    unsyncedCount,
+    syncing,
   } = useGuestSession();
   const insets = useSafeAreaInsets();
   const c = copy(locale);
@@ -148,9 +151,21 @@ export default function MyRecipesScreen() {
         <View style={{ paddingHorizontal: space[5], gap: space[4] }}>
           {signedIn ? (
             <View style={{ alignSelf: 'flex-start' }}>
-              <Tag tone="mint" icon="check">
-                {c.home.synced}
-              </Tag>
+              {syncing ? (
+                <Tag tone="sky" icon="sparkle">
+                  {c.home.syncing}
+                </Tag>
+              ) : recipesSynced ? (
+                <Tag tone="mint" icon="check">
+                  {c.home.synced}
+                </Tag>
+              ) : (
+                <Tag tone="haldi" icon="sparkle">
+                  {unsyncedCount > 0
+                    ? `${c.home.pendingSync} · ${unsyncedCount}`
+                    : c.home.pendingSync}
+                </Tag>
+              )}
             </View>
           ) : null}
 

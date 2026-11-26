@@ -13,8 +13,8 @@ const LOCAL_EXPO_ORIGINS = [
   'http://127.0.0.1:19006',
 ] as const;
 
-const ALLOW_METHODS = 'GET, POST, OPTIONS';
-const ALLOW_HEADERS = 'Content-Type, Accept, Authorization';
+const ALLOW_METHODS = 'GET, POST, PATCH, DELETE, OPTIONS';
+const ALLOW_HEADERS = 'Content-Type, Accept, Authorization, X-KYF-User-Id';
 const MAX_AGE_SECONDS = '86400';
 
 function readEnvOrigins(): string[] {

@@ -34,6 +34,10 @@ export default function ProfileScreen() {
     resetGuestData,
     signOut,
     showToast,
+    recipesSynced,
+    unsyncedCount,
+    syncing,
+    syncRecipes,
   } = useGuestSession();
   const insets = useSafeAreaInsets();
   const c = copy(locale);
@@ -85,6 +89,13 @@ export default function ProfileScreen() {
           <Text style={[type.body, { color: colors.inkMuted }]}>
             Guest store · {recipeCount} recipes · device {snap.deviceId.slice(0, 12)}…
             {authLabel}
+            {isSignedIn
+              ? syncing
+                ? ' · syncing…'
+                : recipesSynced
+                  ? ' · synced'
+                  : ` · ${unsyncedCount} pending`
+              : ''}
           </Text>
 
           {/* ACCOUNT first — invite card for guests cannot be mistaken for a ListRow */}
@@ -128,6 +139,20 @@ export default function ProfileScreen() {
                     />
                   ) : null}
                 </View>
+                <Button
+                  variant="ghost"
+                  block
+                  disabled={syncing}
+                  onPress={() => void syncRecipes()}
+                >
+                  {syncing
+                    ? locale === 'hi'
+                      ? 'सिंक हो रहा है…'
+                      : 'Syncing…'
+                    : locale === 'hi'
+                      ? 'रेसिपी सिंक करें'
+                      : 'Sync recipes'}
+                </Button>
                 <Button variant="secondary" block onPress={() => void onSignOut()}>
                   {c.auth.signOut}
                 </Button>

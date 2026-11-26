@@ -27,6 +27,7 @@ export async function GET() {
       ...base,
       databaseReachable: false,
       databaseSchemaReady: false,
+      recipesSchemaReady: false,
     });
   }
 
@@ -35,6 +36,7 @@ export async function GET() {
     ...base,
     databaseReachable: ping.reachable,
     databaseSchemaReady: ping.schemaReady,
+    recipesSchemaReady: ping.recipesSchemaReady ?? false,
     ...(ping.error ? { databaseError: ping.error } : {}),
   });
 }

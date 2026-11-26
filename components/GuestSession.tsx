@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
@@ -11,6 +12,13 @@ import {
 import type { Diet } from '@/components/ui';
 import { useLocale } from '@/components/LocaleProvider';
 import { authClient, type AuthSession } from '@/features/auth';
+import {
+  allRecipesSynced,
+  syncRecipesWithServer,
+  unsyncedRecipeCount,
+  type SyncResult,
+} from '@/features/recipes';
+import type { SyncStatus } from '@/lib/api';
 import { setLocale as setI18nLocale, type AppLocale } from '@/lib/i18n';
 import {
   activeRecipes,
@@ -44,6 +52,11 @@ type GuestSessionValue = {
   signedIn: boolean;
   authSession: AuthSession | null;
   toast: string | null;
+  /** True when signed in and every active recipe is synced. */
+  recipesSynced: boolean;
+  /** Active recipes still local/pending (0 when guest or all synced). */
+  unsyncedCount: number;
+  syncing: boolean;
   toggleDiet: (diet: Diet) => void;
   toggleSource: (key: SourceKey) => void;
   setLocalePref: (locale: AppLocale) => void;
@@ -69,6 +82,8 @@ type GuestSessionValue = {
   toggleShoppingItem: (id: string) => Promise<void>;
   addShoppingItem: (name: string) => Promise<void>;
   claimMerge: (strategy: 'keep-all' | 'collision' | 'skip') => Promise<void>;
+  /** Push/pull recipes when signed in. No-op for guests. */
+  syncRecipes: () => Promise<SyncResult>;
   notePromptShown: (kind: AccountPromptKind) => Promise<void>;
 };
 
@@ -78,42 +93,19 @@ export function GuestSessionProvider({ children }: { children: ReactNode }) {
   return <GuestSessionInner>{children}</GuestSessionInner>;
 }
 
+function initialSyncStatus(signedIn: boolean): SyncStatus {
+  return signedIn ? 'pending' : 'local';
+}
+
 function GuestSessionInner({ children }: { children: ReactNode }) {
   const { setLocale } = useLocale();
   const [ready, setReady] = useState(false);
   const [snap, setSnap] = useState<GuestStoreSnapshot>(() => createEmptySnapshot());
   const [authSession, setAuthSession] = useState<AuthSession | null>(null);
   const [toast, setToast] = useState<string | null>(null);
-
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      const [loaded, session] = await Promise.all([guestStore.load(), authClient.getSession()]);
-      if (!alive) return;
-      setI18nLocale(loaded.locale);
-      setLocale(loaded.locale);
-      setAuthSession(session);
-
-      let next = loaded;
-      const signed = Boolean(session && !session.isGuest);
-      if (signed !== loaded.signedIn) {
-        next = {
-          ...loaded,
-          signedIn: signed,
-          claimedAt: signed ? loaded.claimedAt || nowIso() : null,
-        };
-        await guestStore.save(next);
-      }
-      setSnap(next);
-      setReady(true);
-    })().catch((err) => {
-      console.warn('Guest store load failed', err);
-      if (alive) setReady(true);
-    });
-    return () => {
-      alive = false;
-    };
-  }, [setLocale]);
+  const [syncing, setSyncing] = useState(false);
+  const syncInFlight = useRef(false);
+  const authSessionRef = useRef<AuthSession | null>(null);
 
   const commit = useCallback(async (next: GuestStoreSnapshot, prev?: GuestStoreSnapshot) => {
     // Skip setState when the mutator was a no-op (same JSON). Prevents effect loops
@@ -135,8 +127,92 @@ function GuestSessionInner({ children }: { children: ReactNode }) {
     [commit],
   );
 
+  const runSync = useCallback(
+    async (session: AuthSession | null) => {
+      if (syncInFlight.current) {
+        return {
+          ok: true,
+          pushed: 0,
+          pulled: 0,
+          skipped: true,
+          reason: 'in_flight',
+        } satisfies SyncResult;
+      }
+      if (!session || session.isGuest) {
+        return {
+          ok: true,
+          pushed: 0,
+          pulled: 0,
+          skipped: true,
+          reason: 'guest',
+        } satisfies SyncResult;
+      }
+      syncInFlight.current = true;
+      setSyncing(true);
+      try {
+        const current = await guestStore.load();
+        return await syncRecipesWithServer({
+          session,
+          snapshot: current,
+          applySnapshot: async (next) => {
+            const prev = await guestStore.load();
+            return commit(next, prev);
+          },
+        });
+      } finally {
+        syncInFlight.current = false;
+        setSyncing(false);
+      }
+    },
+    [commit],
+  );
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const [loaded, session] = await Promise.all([guestStore.load(), authClient.getSession()]);
+      if (!alive) return;
+      setI18nLocale(loaded.locale);
+      setLocale(loaded.locale);
+      setAuthSession(session);
+      authSessionRef.current = session;
+
+      let next = loaded;
+      const signed = Boolean(session && !session.isGuest);
+      if (signed !== loaded.signedIn) {
+        next = {
+          ...loaded,
+          signedIn: signed,
+          claimedAt: signed ? loaded.claimedAt || nowIso() : null,
+        };
+        await guestStore.save(next);
+      }
+      setSnap(next);
+      setReady(true);
+
+      if (signed && session) {
+        void runSync(session);
+      }
+    })().catch((err) => {
+      console.warn('Guest store load failed', err);
+      if (alive) setReady(true);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [setLocale, runSync]);
+
   const recipes = useMemo(() => activeRecipes(snap), [snap]);
   const recipeCount = recipes.length;
+  const signedInFlag = Boolean(snap.signedIn || (authSession && !authSession.isGuest));
+  const unsyncedCount = useMemo(
+    () => (signedInFlag ? unsyncedRecipeCount(snap) : 0),
+    [signedInFlag, snap],
+  );
+  const recipesSynced = useMemo(
+    () => (signedInFlag ? allRecipesSynced(snap) : false),
+    [signedInFlag, snap],
+  );
 
   const value = useMemo<GuestSessionValue>(
     () => ({
@@ -150,9 +226,12 @@ function GuestSessionInner({ children }: { children: ReactNode }) {
       recipeCount,
       // Prefer store flag; also treat a non-guest auth session as signed in
       // so Profile/menu can't diverge from the status line after HMR/partial hydration.
-      signedIn: Boolean(snap.signedIn || (authSession && !authSession.isGuest)),
+      signedIn: signedInFlag,
       authSession,
       toast,
+      recipesSynced,
+      unsyncedCount,
+      syncing,
       toggleDiet: (diet) => {
         void mutate((s) => ({ ...s, diets: { ...s.diets, [diet]: !s.diets[diet] } }));
       },
@@ -197,6 +276,7 @@ function GuestSessionInner({ children }: { children: ReactNode }) {
       },
       applyAuthSession: async (session) => {
         setAuthSession(session);
+        authSessionRef.current = session;
         if (session.isGuest) {
           await authClient.continueAsGuest();
           await mutate((s) => ({ ...s, signedIn: false }));
@@ -206,12 +286,19 @@ function GuestSessionInner({ children }: { children: ReactNode }) {
           ...s,
           signedIn: true,
           claimedAt: s.claimedAt || nowIso(),
+          // Mark local recipes pending so the next sync push includes them.
+          recipes: s.recipes.map((r) =>
+            r.syncStatus === 'synced'
+              ? r
+              : { ...r, syncStatus: 'pending' as SyncStatus },
+          ),
         }));
       },
       signOut: async () => {
         await authClient.signOut();
         const guest = await authClient.getSession();
         setAuthSession(guest);
+        authSessionRef.current = guest;
         await mutate((s) => ({
           ...s,
           signedIn: false,
@@ -238,14 +325,23 @@ function GuestSessionInner({ children }: { children: ReactNode }) {
         setI18nLocale(fresh.locale);
         setLocale(fresh.locale);
         setSnap(fresh);
-        setAuthSession(await authClient.getSession());
+        const guest = await authClient.getSession();
+        setAuthSession(guest);
+        authSessionRef.current = guest;
         setToast(null);
       },
       importDemoRecipe: async (link) => {
         let prompt: AccountPromptKind | null = null;
         let recipe = buildImportedDal(link);
+        let shouldSync = false;
         await mutate((s) => {
-          recipe = { ...recipe, id: recipe.id };
+          const signed = Boolean(s.signedIn);
+          recipe = {
+            ...recipe,
+            id: recipe.id,
+            syncStatus: initialSyncStatus(signed),
+          };
+          shouldSync = signed;
           let next: GuestStoreSnapshot = {
             ...s,
             recipes: [...s.recipes, recipe],
@@ -264,12 +360,19 @@ function GuestSessionInner({ children }: { children: ReactNode }) {
           }
           return next;
         });
+        if (shouldSync) {
+          void runSync(authSessionRef.current);
+        }
         return { recipe, prompt };
       },
       saveSharedRecipe: async () => {
         let prompt: AccountPromptKind | null = null;
         let recipe = buildSharedPaneer();
+        let shouldSync = false;
         await mutate((s) => {
+          const signed = Boolean(s.signedIn);
+          recipe = { ...recipe, syncStatus: initialSyncStatus(signed) };
+          shouldSync = signed;
           let next: GuestStoreSnapshot = {
             ...s,
             recipes: [...s.recipes, recipe],
@@ -287,6 +390,9 @@ function GuestSessionInner({ children }: { children: ReactNode }) {
           }
           return next;
         });
+        if (shouldSync) {
+          void runSync(authSessionRef.current);
+        }
         return { recipe, prompt };
       },
       recordShare: async () => {
@@ -357,18 +463,34 @@ function GuestSessionInner({ children }: { children: ReactNode }) {
           ...s,
           signedIn: true,
           claimedAt: nowIso(),
+          // Pending until cloud sync confirms — not optimistic "synced".
           recipes: s.recipes.map((r) => ({
             ...r,
-            syncStatus: 'synced' as const,
-            updatedAt: nowIso(),
+            syncStatus: 'pending' as SyncStatus,
           })),
         }));
+        await runSync(authSessionRef.current);
       },
+      syncRecipes: async () => runSync(authSessionRef.current),
       notePromptShown: async (kind) => {
         await mutate((s) => markPrompt(s, kind));
       },
     }),
-    [ready, snap, recipes, recipeCount, authSession, toast, mutate, setLocale],
+    [
+      ready,
+      snap,
+      recipes,
+      recipeCount,
+      signedInFlag,
+      authSession,
+      toast,
+      recipesSynced,
+      unsyncedCount,
+      syncing,
+      mutate,
+      setLocale,
+      runSync,
+    ],
   );
 
   return <GuestSessionContext.Provider value={value}>{children}</GuestSessionContext.Provider>;

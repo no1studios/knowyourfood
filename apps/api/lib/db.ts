@@ -13,6 +13,12 @@ export type Sql = NeonQueryFunction<false, false>;
 let cached: Sql | null | undefined;
 let schemaReady: Promise<void> | null = null;
 
+/** Lazily imported to avoid circular init with recipes.ts → ensureAuthSchema. */
+async function ensureRecipesTable(sql: Sql): Promise<void> {
+  const { ensureRecipesSchema } = await import('./recipes');
+  await ensureRecipesSchema(sql);
+}
+
 export { isDatabaseConfigured };
 
 /** Returns a tagged-template SQL client, or null when DATABASE_URL is unset. */
@@ -152,6 +158,8 @@ export async function ensureAuthSchema(sql: Sql = getSql()!): Promise<void> {
 export type DatabasePing = {
   reachable: boolean;
   schemaReady: boolean;
+  /** recipes table present (auto-migrated on ensure). */
+  recipesSchemaReady?: boolean;
   error?: DbErrorInfo;
 };
 
@@ -178,17 +186,31 @@ export async function pingDatabase(): Promise<DatabasePing> {
 
   try {
     await ensureAuthSchema(sql);
+    try {
+      await ensureRecipesTable(sql);
+    } catch (recipesErr) {
+      console.error(
+        '[db] ensure recipes schema skipped',
+        sanitizeDbError(recipesErr).message,
+      );
+    }
     const tables = (await sql`
       SELECT
         to_regclass('public.users') IS NOT NULL AS users_ok,
-        to_regclass('public.auth_identities') IS NOT NULL AS identities_ok
-    `) as { users_ok: boolean; identities_ok: boolean }[];
+        to_regclass('public.auth_identities') IS NOT NULL AS identities_ok,
+        to_regclass('public.recipes') IS NOT NULL AS recipes_ok
+    `) as {
+      users_ok: boolean;
+      identities_ok: boolean;
+      recipes_ok: boolean;
+    }[];
     const row = tables[0];
     const tablesOk = Boolean(row?.users_ok && row?.identities_ok);
     if (!tablesOk) {
       return {
         reachable: true,
         schemaReady: false,
+        recipesSchemaReady: Boolean(row?.recipes_ok),
         error: {
           code: 'db_schema_missing',
           message: 'users / auth_identities tables missing after ensure',
@@ -199,6 +221,7 @@ export async function pingDatabase(): Promise<DatabasePing> {
     return {
       reachable: true,
       schemaReady: columnsOk,
+      recipesSchemaReady: Boolean(row?.recipes_ok),
       error: columnsOk
         ? undefined
         : {

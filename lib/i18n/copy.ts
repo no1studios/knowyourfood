@@ -150,6 +150,8 @@ export function copy(locale: AppLocale) {
         primary: x('Sign in', 'साइन इन करें'),
       },
       synced: x('Synced', 'सिंक हो गया'),
+      syncing: x('Syncing…', 'सिंक हो रहा है…'),
+      pendingSync: x('Not synced yet', 'अभी सिंक नहीं हुआ'),
       guestToast: x(
         'You’re cooking as a guest. Your recipes stay on this phone.',
         'आप मेहमान के रूप में जारी हैं। आपकी रेसिपी इसी फ़ोन पर रहेंगी।',

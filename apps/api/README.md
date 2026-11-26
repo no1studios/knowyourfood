@@ -137,10 +137,24 @@ curl -s -X POST http://localhost:3000/api/auth/otp/verify \
 
 | Method | Path | Purpose |
 |--------|------|---------|
-| `GET` | `/api/health` | Deploy check (`authMock`, `smsConfigured`, `googleConfigured`, `databaseConfigured`, live DB ping) |
+| `GET` | `/api/health` | Deploy check (`authMock`, `smsConfigured`, `googleConfigured`, `databaseConfigured`, live DB ping, `recipesSchemaReady`) |
 | `POST` | `/api/auth/otp/start` | Start phone OTP (+91) — mock or MSG91 SendOTP |
 | `POST` | `/api/auth/otp/verify` | Verify OTP → session (+ DB upsert, or **link** to `linkUserId` when set) |
 | `POST` | `/api/auth/oauth/[provider]` | `google` (ID token verify + upsert) \| `apple` (mock / 501) |
+| `GET` | `/api/recipes` | List recipes for signed-in user (`?includeDeleted=1` for tombstones) |
+| `POST` | `/api/recipes` | Create / upsert recipe (LWW on `updated_at`) |
+| `GET` | `/api/recipes/[id]` | Get one recipe |
+| `PATCH` | `/api/recipes/[id]` | Update recipe (LWW) |
+| `DELETE` | `/api/recipes/[id]` | Soft-delete (`?updatedAt=` optional) |
+
+### Recipe auth
+
+All `/api/recipes*` routes require:
+
+- `Authorization: Bearer <idToken>` — Google ID token (live) or mock session token
+- `X-KYF-User-Id: <uuid>` — Neon user id (required for mock/phone; optional hint for Google)
+
+Guests do not call these routes. Schema auto-migrates via `ensureRecipesSchema` on first request / health ping.
 
 ## Schema
 
@@ -148,6 +162,7 @@ curl -s -X POST http://localhost:3000/api/auth/otp/verify \
 
 - `users` — id, display_name, preferred_locale, diet_prefs, open_to_orders, …
 - `auth_identities` — provider (`phone` \| `google` \| `apple`), provider_subject, phone_e164, email; unique `(provider, provider_subject)`
+- `recipes` — client `id` (TEXT), `owner_user_id`, JSONB `payload`, LWW `updated_at`, soft `deleted_at`
 
 ## Env vars
 
