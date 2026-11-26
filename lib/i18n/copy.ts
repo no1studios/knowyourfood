@@ -449,6 +449,8 @@ export function copy(locale: AppLocale) {
       title: x('Shopping list', 'शॉपिंग सूची'),
       share: x('Share list', 'सूची शेयर करें'),
       add: x('Add item', 'चीज़ जोड़ें'),
+      synced: x('Synced to your account', 'आपके अकाउंट से सिंक'),
+      syncing: x('Syncing list…', 'सूची सिंक हो रही है…'),
       progress: (done: number, total: number) =>
         x(`${done} of ${total} done`, `${total} में से ${done} हो गए`),
       chips: [

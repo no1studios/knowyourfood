@@ -8,11 +8,19 @@ import { useTheme } from '@/components/ThemeProvider';
 import { AppHeader, Chip, Fab, IconButton, ListRow } from '@/components/ui';
 import { copy } from '@/lib/i18n/copy';
 
-/** Artboard 08 — Shopping checklist persisted in guest store. */
+/** Artboard 08 — Shopping checklist; cloud-synced when signed in. */
 export default function ChecklistScreen() {
   const { locale } = useLocale();
   const { colors, type, space, radius, elevation } = useTheme();
-  const { shoppingItems, toggleShoppingItem, addShoppingItem, recipes } = useGuestSession();
+  const {
+    shoppingItems,
+    toggleShoppingItem,
+    addShoppingItem,
+    recipes,
+    signedIn,
+    shoppingSynced,
+    syncing,
+  } = useGuestSession();
   const insets = useSafeAreaInsets();
   const c = copy(locale);
   const hi = locale === 'hi';
@@ -74,6 +82,13 @@ export default function ChecklistScreen() {
             </View>
             <Text style={[type.caption, { color: colors.inkMuted }]}>
               {c.list.progress(doneN, total)}
+              {signedIn
+                ? syncing
+                  ? ` · ${c.list.syncing}`
+                  : shoppingSynced
+                    ? ` · ${c.list.synced}`
+                    : ''
+                : ''}
             </Text>
           </View>
 

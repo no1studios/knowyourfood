@@ -28,6 +28,7 @@ export async function GET() {
       databaseReachable: false,
       databaseSchemaReady: false,
       recipesSchemaReady: false,
+      shoppingSchemaReady: false,
     });
   }
 
@@ -37,6 +38,7 @@ export async function GET() {
     databaseReachable: ping.reachable,
     databaseSchemaReady: ping.schemaReady,
     recipesSchemaReady: ping.recipesSchemaReady ?? false,
+    shoppingSchemaReady: ping.shoppingSchemaReady ?? false,
     ...(ping.error ? { databaseError: ping.error } : {}),
   });
 }

@@ -18,10 +18,16 @@ import {
   unsyncedRecipeCount,
   type SyncResult,
 } from '@/features/recipes';
+import {
+  allShoppingSynced,
+  syncShoppingWithServer,
+  unsyncedShoppingCount,
+} from '@/features/shopping';
 import type { SyncStatus } from '@/lib/api';
 import { setLocale as setI18nLocale, type AppLocale } from '@/lib/i18n';
 import {
   activeRecipes,
+  activeShoppingItems,
   buildDemoRecipes,
   buildDemoShopping,
   buildImportedDal,
@@ -54,8 +60,12 @@ type GuestSessionValue = {
   toast: string | null;
   /** True when signed in and every active recipe is synced. */
   recipesSynced: boolean;
+  /** True when signed in and every active checklist item is synced. */
+  shoppingSynced: boolean;
   /** Active recipes still local/pending (0 when guest or all synced). */
   unsyncedCount: number;
+  /** Active checklist items still local/pending (0 when guest or all synced). */
+  unsyncedShoppingCount: number;
   syncing: boolean;
   toggleDiet: (diet: Diet) => void;
   toggleSource: (key: SourceKey) => void;
@@ -82,8 +92,10 @@ type GuestSessionValue = {
   toggleShoppingItem: (id: string) => Promise<void>;
   addShoppingItem: (name: string) => Promise<void>;
   claimMerge: (strategy: 'keep-all' | 'collision' | 'skip') => Promise<void>;
-  /** Push/pull recipes when signed in. No-op for guests. */
+  /** Push/pull recipes + checklist when signed in. No-op for guests. */
   syncRecipes: () => Promise<SyncResult>;
+  /** Push/pull checklist only when signed in. No-op for guests. */
+  syncShopping: () => Promise<SyncResult>;
   notePromptShown: (kind: AccountPromptKind) => Promise<void>;
 };
 
@@ -127,6 +139,14 @@ function GuestSessionInner({ children }: { children: ReactNode }) {
     [commit],
   );
 
+  const applySnapshot = useCallback(
+    async (next: GuestStoreSnapshot) => {
+      const prev = await guestStore.load();
+      return commit(next, prev);
+    },
+    [commit],
+  );
+
   const runSync = useCallback(
     async (session: AuthSession | null) => {
       if (syncInFlight.current) {
@@ -150,21 +170,77 @@ function GuestSessionInner({ children }: { children: ReactNode }) {
       syncInFlight.current = true;
       setSyncing(true);
       try {
-        const current = await guestStore.load();
-        return await syncRecipesWithServer({
+        let current = await guestStore.load();
+        const recipesResult = await syncRecipesWithServer({
           session,
           snapshot: current,
-          applySnapshot: async (next) => {
-            const prev = await guestStore.load();
-            return commit(next, prev);
-          },
+          applySnapshot,
         });
+        current = await guestStore.load();
+        const shoppingResult = await syncShoppingWithServer({
+          session,
+          snapshot: current,
+          applySnapshot,
+        });
+        return {
+          ok: recipesResult.ok && shoppingResult.ok,
+          pushed: recipesResult.pushed + shoppingResult.pushed,
+          pulled: recipesResult.pulled + shoppingResult.pulled,
+          skipped: Boolean(recipesResult.skipped && shoppingResult.skipped),
+          reason: recipesResult.reason || shoppingResult.reason,
+          error: recipesResult.error || shoppingResult.error,
+        } satisfies SyncResult;
       } finally {
         syncInFlight.current = false;
         setSyncing(false);
       }
     },
-    [commit],
+    [applySnapshot],
+  );
+
+  const runShoppingSync = useCallback(
+    async (session: AuthSession | null) => {
+      if (!session || session.isGuest) {
+        return {
+          ok: true,
+          pushed: 0,
+          pulled: 0,
+          skipped: true,
+          reason: 'guest',
+        } satisfies SyncResult;
+      }
+      if (syncInFlight.current) {
+        return {
+          ok: true,
+          pushed: 0,
+          pulled: 0,
+          skipped: true,
+          reason: 'in_flight',
+        } satisfies SyncResult;
+      }
+      syncInFlight.current = true;
+      setSyncing(true);
+      try {
+        const current = await guestStore.load();
+        const result = await syncShoppingWithServer({
+          session,
+          snapshot: current,
+          applySnapshot,
+        });
+        return {
+          ok: result.ok,
+          pushed: result.pushed,
+          pulled: result.pulled,
+          skipped: result.skipped,
+          reason: result.reason,
+          error: result.error,
+        } satisfies SyncResult;
+      } finally {
+        syncInFlight.current = false;
+        setSyncing(false);
+      }
+    },
+    [applySnapshot],
   );
 
   useEffect(() => {
@@ -203,14 +279,23 @@ function GuestSessionInner({ children }: { children: ReactNode }) {
   }, [setLocale, runSync]);
 
   const recipes = useMemo(() => activeRecipes(snap), [snap]);
+  const shoppingItems = useMemo(() => activeShoppingItems(snap), [snap]);
   const recipeCount = recipes.length;
   const signedInFlag = Boolean(snap.signedIn || (authSession && !authSession.isGuest));
   const unsyncedCount = useMemo(
     () => (signedInFlag ? unsyncedRecipeCount(snap) : 0),
     [signedInFlag, snap],
   );
+  const unsyncedShopping = useMemo(
+    () => (signedInFlag ? unsyncedShoppingCount(snap) : 0),
+    [signedInFlag, snap],
+  );
   const recipesSynced = useMemo(
     () => (signedInFlag ? allRecipesSynced(snap) : false),
+    [signedInFlag, snap],
+  );
+  const shoppingSynced = useMemo(
+    () => (signedInFlag ? allShoppingSynced(snap) : false),
     [signedInFlag, snap],
   );
 
@@ -219,7 +304,7 @@ function GuestSessionInner({ children }: { children: ReactNode }) {
       ready,
       snap,
       recipes,
-      shoppingItems: snap.shoppingItems,
+      shoppingItems,
       diets: snap.diets,
       sources: snap.sources,
       hasRecipes: recipeCount > 0,
@@ -230,7 +315,9 @@ function GuestSessionInner({ children }: { children: ReactNode }) {
       authSession,
       toast,
       recipesSynced,
+      shoppingSynced,
       unsyncedCount,
+      unsyncedShoppingCount: unsyncedShopping,
       syncing,
       toggleDiet: (diet) => {
         void mutate((s) => ({ ...s, diets: { ...s.diets, [diet]: !s.diets[diet] } }));
@@ -286,11 +373,16 @@ function GuestSessionInner({ children }: { children: ReactNode }) {
           ...s,
           signedIn: true,
           claimedAt: s.claimedAt || nowIso(),
-          // Mark local recipes pending so the next sync push includes them.
+          // Mark local recipes + checklist pending so the next sync push includes them.
           recipes: s.recipes.map((r) =>
             r.syncStatus === 'synced'
               ? r
               : { ...r, syncStatus: 'pending' as SyncStatus },
+          ),
+          shoppingItems: s.shoppingItems.map((i) =>
+            i.syncStatus === 'synced'
+              ? i
+              : { ...i, syncStatus: 'pending' as SyncStatus },
           ),
         }));
       },
@@ -408,10 +500,16 @@ function GuestSessionInner({ children }: { children: ReactNode }) {
       },
       getRecipe: (id) => recipes.find((r) => r.id === id),
       addIngredientsToList: async (recipeId) => {
+        let shouldSync = false;
         await mutate((s) => {
           const recipe = activeRecipes(s).find((r) => r.id === recipeId);
           if (!recipe) return s;
-          const existing = new Set(s.shoppingItems.map((i) => i.name.toLowerCase()));
+          const signed = Boolean(s.signedIn);
+          shouldSync = signed;
+          const existing = new Set(
+            activeShoppingItems(s).map((i) => i.name.toLowerCase()),
+          );
+          const t = nowIso();
           const additions: GuestShoppingItem[] = [];
           recipe.ingredients.forEach((ing, idx) => {
             if (existing.has(ing.title.toLowerCase())) return;
@@ -426,37 +524,74 @@ function GuestSessionInner({ children }: { children: ReactNode }) {
               recipeTitle: recipe.title,
               recipeTitleHi: recipe.titleHi,
               checked: false,
-              position: s.shoppingItems.length + idx,
+              position: activeShoppingItems(s).length + idx,
+              createdAt: t,
+              updatedAt: t,
+              syncStatus: initialSyncStatus(signed),
             });
           });
+          if (additions.length === 0) return s;
           return { ...s, shoppingItems: [...s.shoppingItems, ...additions] };
         });
+        if (shouldSync) {
+          void runShoppingSync(authSessionRef.current);
+        }
       },
       toggleShoppingItem: async (id) => {
-        await mutate((s) => ({
-          ...s,
-          shoppingItems: s.shoppingItems.map((item) =>
-            item.id === id ? { ...item, checked: !item.checked } : item,
-          ),
-        }));
+        let shouldSync = false;
+        await mutate((s) => {
+          const signed = Boolean(s.signedIn);
+          shouldSync = signed;
+          const t = nowIso();
+          return {
+            ...s,
+            shoppingItems: s.shoppingItems.map((item) =>
+              item.id === id
+                ? {
+                    ...item,
+                    checked: !item.checked,
+                    updatedAt: t,
+                    syncStatus: signed
+                      ? ('pending' as SyncStatus)
+                      : item.syncStatus || 'local',
+                  }
+                : item,
+            ),
+          };
+        });
+        if (shouldSync) {
+          void runShoppingSync(authSessionRef.current);
+        }
       },
       addShoppingItem: async (name) => {
         const trimmed = name.trim();
         if (!trimmed) return;
-        await mutate((s) => ({
-          ...s,
-          shoppingItems: [
-            ...s.shoppingItems,
-            {
-              id: uid('shop'),
-              name: trimmed,
-              aisle: 'OTHER',
-              aisleHi: 'अन्य',
-              checked: false,
-              position: s.shoppingItems.length,
-            },
-          ],
-        }));
+        let shouldSync = false;
+        await mutate((s) => {
+          const signed = Boolean(s.signedIn);
+          shouldSync = signed;
+          const t = nowIso();
+          return {
+            ...s,
+            shoppingItems: [
+              ...s.shoppingItems,
+              {
+                id: uid('shop'),
+                name: trimmed,
+                aisle: 'OTHER',
+                aisleHi: 'अन्य',
+                checked: false,
+                position: activeShoppingItems(s).length,
+                createdAt: t,
+                updatedAt: t,
+                syncStatus: initialSyncStatus(signed),
+              },
+            ],
+          };
+        });
+        if (shouldSync) {
+          void runShoppingSync(authSessionRef.current);
+        }
       },
       claimMerge: async (_strategy) => {
         await mutate((s) => ({
@@ -468,10 +603,15 @@ function GuestSessionInner({ children }: { children: ReactNode }) {
             ...r,
             syncStatus: 'pending' as SyncStatus,
           })),
+          shoppingItems: s.shoppingItems.map((i) => ({
+            ...i,
+            syncStatus: 'pending' as SyncStatus,
+          })),
         }));
         await runSync(authSessionRef.current);
       },
       syncRecipes: async () => runSync(authSessionRef.current),
+      syncShopping: async () => runShoppingSync(authSessionRef.current),
       notePromptShown: async (kind) => {
         await mutate((s) => markPrompt(s, kind));
       },
@@ -480,16 +620,20 @@ function GuestSessionInner({ children }: { children: ReactNode }) {
       ready,
       snap,
       recipes,
+      shoppingItems,
       recipeCount,
       signedInFlag,
       authSession,
       toast,
       recipesSynced,
+      shoppingSynced,
       unsyncedCount,
+      unsyncedShopping,
       syncing,
       mutate,
       setLocale,
       runSync,
+      runShoppingSync,
     ],
   );
 

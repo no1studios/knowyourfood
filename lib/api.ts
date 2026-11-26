@@ -1,10 +1,10 @@
 /**
- * Vercel API client — recipes sync when signed in; share/merge stubs remain.
+ * Vercel API client — recipes + shopping sync when signed in; share/merge stubs remain.
  */
 
 import { getAuthPublicConfig } from '@/features/auth/config';
 import type { AuthSession } from '@/features/auth/types';
-import type { GuestRecipe } from '@/lib/guest-store';
+import type { GuestRecipe, GuestShoppingItem } from '@/lib/guest-store';
 
 export type SyncStatus = 'local' | 'pending' | 'synced';
 
@@ -31,6 +31,17 @@ export type CloudRecipe = {
   deletedAt: string | null;
 };
 
+export type CloudShoppingItem = {
+  id: string;
+  listId: string;
+  ownerUserId: string;
+  name: string;
+  payload: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
+};
+
 export interface ApiClient {
   listRecipes(session: AuthSession): Promise<CloudRecipe[]>;
   getRecipe(session: AuthSession, id: string): Promise<CloudRecipe | null>;
@@ -44,6 +55,20 @@ export interface ApiClient {
     id: string,
     updatedAt?: string,
   ): Promise<CloudRecipe>;
+  listShoppingItems(
+    session: AuthSession,
+  ): Promise<{ listId: string; items: CloudShoppingItem[] }>;
+  upsertShoppingItem(
+    session: AuthSession,
+    item: GuestShoppingItem,
+    deviceId: string,
+    listId: string,
+  ): Promise<CloudShoppingItem>;
+  deleteShoppingItem(
+    session: AuthSession,
+    id: string,
+    updatedAt?: string,
+  ): Promise<CloudShoppingItem>;
   importRecipe(payload: { text?: string; url?: string }): Promise<RecipeDraft>;
   mergeGuest(req: GuestMergeRequest): Promise<{ recipeCount: number }>;
   createShare(recipeId: string): Promise<ShareCreateResult>;
@@ -138,6 +163,65 @@ export const apiClient: ApiClient = {
       throw new Error(data.message || `deleteRecipe ${res.status}`);
     }
     return data.recipe;
+  },
+
+  async listShoppingItems(session) {
+    const res = await fetch(`${baseUrl()}/shopping-lists/items?includeDeleted=1`, {
+      headers: headers(session),
+    });
+    const data = (await res.json().catch(() => ({}))) as {
+      listId?: string;
+      items?: CloudShoppingItem[];
+      message?: string;
+    };
+    if (!res.ok) throw new Error(data.message || `listShoppingItems ${res.status}`);
+    return { listId: data.listId || `list_${session.userId}`, items: data.items ?? [] };
+  },
+
+  async upsertShoppingItem(session, item, deviceId, listId) {
+    const { syncStatus: _s, ...payload } = item;
+    const res = await fetch(`${baseUrl()}/shopping-lists/items`, {
+      method: 'POST',
+      headers: headers(session),
+      body: JSON.stringify({
+        id: item.id,
+        listId,
+        name: item.name,
+        deviceId,
+        createdAt: item.createdAt,
+        updatedAt: item.updatedAt,
+        deletedAt: item.deletedAt ?? null,
+        payload,
+        item: payload,
+      }),
+    });
+    const data = (await res.json().catch(() => ({}))) as {
+      item?: CloudShoppingItem;
+      message?: string;
+    };
+    if (!res.ok || !data.item) {
+      throw new Error(data.message || `upsertShoppingItem ${res.status}`);
+    }
+    return data.item;
+  },
+
+  async deleteShoppingItem(session, id, updatedAt) {
+    const q = updatedAt ? `?updatedAt=${encodeURIComponent(updatedAt)}` : '';
+    const res = await fetch(
+      `${baseUrl()}/shopping-lists/items/${encodeURIComponent(id)}${q}`,
+      {
+        method: 'DELETE',
+        headers: headers(session),
+      },
+    );
+    const data = (await res.json().catch(() => ({}))) as {
+      item?: CloudShoppingItem;
+      message?: string;
+    };
+    if (!res.ok || !data.item) {
+      throw new Error(data.message || `deleteShoppingItem ${res.status}`);
+    }
+    return data.item;
   },
 
   async importRecipe() {

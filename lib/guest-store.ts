@@ -65,6 +65,10 @@ export type GuestShoppingItem = {
   recipeTitleHi?: string;
   checked: boolean;
   position: number;
+  createdAt: string;
+  updatedAt: string;
+  syncStatus: SyncStatus;
+  deletedAt?: string | null;
 };
 
 export type GuestStoreSnapshot = {
@@ -129,6 +133,44 @@ export function createEmptySnapshot(locale: AppLocale = 'en'): GuestStoreSnapsho
 
 export function activeRecipes(snap: GuestStoreSnapshot) {
   return snap.recipes.filter((r) => !r.deletedAt);
+}
+
+export function activeShoppingItems(snap: GuestStoreSnapshot) {
+  return snap.shoppingItems.filter((i) => !i.deletedAt);
+}
+
+/** Backfill sync fields for shopping items saved before checklist cloud sync. */
+export function normalizeShoppingItem(
+  item: Partial<GuestShoppingItem> & Pick<GuestShoppingItem, 'id' | 'name'>,
+  signedIn = false,
+): GuestShoppingItem {
+  const t = item.updatedAt || item.createdAt || nowIso();
+  return {
+    id: item.id,
+    recipeId: item.recipeId,
+    name: item.name,
+    nameHi: item.nameHi,
+    qty: item.qty,
+    aisle: item.aisle || 'OTHER',
+    aisleHi: item.aisleHi,
+    recipeTitle: item.recipeTitle,
+    recipeTitleHi: item.recipeTitleHi,
+    checked: Boolean(item.checked),
+    position: typeof item.position === 'number' ? item.position : 0,
+    createdAt: item.createdAt || t,
+    updatedAt: item.updatedAt || t,
+    syncStatus: item.syncStatus || (signedIn ? 'pending' : 'local'),
+    deletedAt: item.deletedAt ?? null,
+  };
+}
+
+export function normalizeSnapshot(snap: GuestStoreSnapshot): GuestStoreSnapshot {
+  return {
+    ...snap,
+    shoppingItems: (snap.shoppingItems || []).map((i) =>
+      normalizeShoppingItem(i, snap.signedIn),
+    ),
+  };
 }
 
 export function buildDemoRecipes(): GuestRecipe[] {
@@ -264,6 +306,7 @@ export function buildDemoRecipes(): GuestRecipe[] {
 export function buildDemoShopping(recipes: GuestRecipe[]): GuestShoppingItem[] {
   const dal = recipes.find((r) => r.id === 'recipe_dal_makhani');
   const paratha = recipes.find((r) => r.id === 'recipe_aloo_paratha');
+  const t = nowIso();
   const rows: Omit<GuestShoppingItem, 'position'>[] = [
     {
       id: 'shop_onion',
@@ -276,6 +319,9 @@ export function buildDemoShopping(recipes: GuestRecipe[]): GuestShoppingItem[] {
       recipeTitle: 'Dal makhani',
       recipeTitleHi: 'दाल मखनी',
       checked: false,
+      createdAt: t,
+      updatedAt: t,
+      syncStatus: 'local',
     },
     {
       id: 'shop_tomato',
@@ -288,6 +334,9 @@ export function buildDemoShopping(recipes: GuestRecipe[]): GuestShoppingItem[] {
       recipeTitle: 'Dal makhani',
       recipeTitleHi: 'दाल मखनी',
       checked: false,
+      createdAt: t,
+      updatedAt: t,
+      syncStatus: 'local',
     },
     {
       id: 'shop_ginger',
@@ -300,6 +349,9 @@ export function buildDemoShopping(recipes: GuestRecipe[]): GuestShoppingItem[] {
       recipeTitle: 'Masala chai, Dal makhani',
       recipeTitleHi: 'मसाला चाय, दाल मखनी',
       checked: true,
+      createdAt: t,
+      updatedAt: t,
+      syncStatus: 'local',
     },
     {
       id: 'shop_potato',
@@ -312,6 +364,9 @@ export function buildDemoShopping(recipes: GuestRecipe[]): GuestShoppingItem[] {
       recipeTitle: 'Aloo paratha',
       recipeTitleHi: 'आलू पराठा',
       checked: false,
+      createdAt: t,
+      updatedAt: t,
+      syncStatus: 'local',
     },
     {
       id: 'shop_urad',
@@ -324,6 +379,9 @@ export function buildDemoShopping(recipes: GuestRecipe[]): GuestShoppingItem[] {
       recipeTitle: 'Dal makhani',
       recipeTitleHi: 'दाल मखनी',
       checked: false,
+      createdAt: t,
+      updatedAt: t,
+      syncStatus: 'local',
     },
     {
       id: 'shop_atta',
@@ -336,6 +394,9 @@ export function buildDemoShopping(recipes: GuestRecipe[]): GuestShoppingItem[] {
       recipeTitle: 'Aloo paratha',
       recipeTitleHi: 'आलू पराठा',
       checked: true,
+      createdAt: t,
+      updatedAt: t,
+      syncStatus: 'local',
     },
     {
       id: 'shop_butter',
@@ -348,6 +409,9 @@ export function buildDemoShopping(recipes: GuestRecipe[]): GuestShoppingItem[] {
       recipeTitle: 'Dal makhani, Aloo paratha',
       recipeTitleHi: 'दाल मखनी, आलू पराठा',
       checked: false,
+      createdAt: t,
+      updatedAt: t,
+      syncStatus: 'local',
     },
     {
       id: 'shop_cream',
@@ -360,6 +424,9 @@ export function buildDemoShopping(recipes: GuestRecipe[]): GuestShoppingItem[] {
       recipeTitle: 'Dal makhani',
       recipeTitleHi: 'दाल मखनी',
       checked: false,
+      createdAt: t,
+      updatedAt: t,
+      syncStatus: 'local',
     },
   ];
   return rows.map((r, i) => ({ ...r, position: i }));
@@ -411,7 +478,7 @@ async function readRaw(): Promise<GuestStoreSnapshot | null> {
     if (!raw) return null;
     const parsed = JSON.parse(raw) as GuestStoreSnapshot;
     if (!parsed || parsed.version !== 1) return null;
-    return parsed;
+    return normalizeSnapshot(parsed);
   } catch {
     return null;
   }

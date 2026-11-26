@@ -1,5 +1,5 @@
 /**
- * Resolve the signed-in user for recipe (and future) authenticated routes.
+ * Resolve the signed-in user for recipe / shopping (and future) authenticated routes.
  *
  * Headers:
  *   Authorization: Bearer <idToken>   — Google ID token, or mock session token

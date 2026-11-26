@@ -19,6 +19,12 @@ async function ensureRecipesTable(sql: Sql): Promise<void> {
   await ensureRecipesSchema(sql);
 }
 
+/** Lazily imported to avoid circular init with shopping.ts → ensureAuthSchema. */
+async function ensureShoppingTables(sql: Sql): Promise<void> {
+  const { ensureShoppingSchema } = await import('./shopping');
+  await ensureShoppingSchema(sql);
+}
+
 export { isDatabaseConfigured };
 
 /** Returns a tagged-template SQL client, or null when DATABASE_URL is unset. */
@@ -160,6 +166,8 @@ export type DatabasePing = {
   schemaReady: boolean;
   /** recipes table present (auto-migrated on ensure). */
   recipesSchemaReady?: boolean;
+  /** shopping_lists + shopping_items present (auto-migrated on ensure). */
+  shoppingSchemaReady?: boolean;
   error?: DbErrorInfo;
 };
 
@@ -194,23 +202,37 @@ export async function pingDatabase(): Promise<DatabasePing> {
         sanitizeDbError(recipesErr).message,
       );
     }
+    try {
+      await ensureShoppingTables(sql);
+    } catch (shoppingErr) {
+      console.error(
+        '[db] ensure shopping schema skipped',
+        sanitizeDbError(shoppingErr).message,
+      );
+    }
     const tables = (await sql`
       SELECT
         to_regclass('public.users') IS NOT NULL AS users_ok,
         to_regclass('public.auth_identities') IS NOT NULL AS identities_ok,
-        to_regclass('public.recipes') IS NOT NULL AS recipes_ok
+        to_regclass('public.recipes') IS NOT NULL AS recipes_ok,
+        to_regclass('public.shopping_lists') IS NOT NULL AS shopping_lists_ok,
+        to_regclass('public.shopping_items') IS NOT NULL AS shopping_items_ok
     `) as {
       users_ok: boolean;
       identities_ok: boolean;
       recipes_ok: boolean;
+      shopping_lists_ok: boolean;
+      shopping_items_ok: boolean;
     }[];
     const row = tables[0];
     const tablesOk = Boolean(row?.users_ok && row?.identities_ok);
+    const shoppingOk = Boolean(row?.shopping_lists_ok && row?.shopping_items_ok);
     if (!tablesOk) {
       return {
         reachable: true,
         schemaReady: false,
         recipesSchemaReady: Boolean(row?.recipes_ok),
+        shoppingSchemaReady: shoppingOk,
         error: {
           code: 'db_schema_missing',
           message: 'users / auth_identities tables missing after ensure',
@@ -222,6 +244,7 @@ export async function pingDatabase(): Promise<DatabasePing> {
       reachable: true,
       schemaReady: columnsOk,
       recipesSchemaReady: Boolean(row?.recipes_ok),
+      shoppingSchemaReady: shoppingOk,
       error: columnsOk
         ? undefined
         : {

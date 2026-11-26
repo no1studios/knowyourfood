@@ -35,7 +35,9 @@ export default function ProfileScreen() {
     signOut,
     showToast,
     recipesSynced,
+    shoppingSynced,
     unsyncedCount,
+    unsyncedShoppingCount,
     syncing,
     syncRecipes,
   } = useGuestSession();
@@ -92,9 +94,9 @@ export default function ProfileScreen() {
             {isSignedIn
               ? syncing
                 ? ' · syncing…'
-                : recipesSynced
+                : recipesSynced && shoppingSynced
                   ? ' · synced'
-                  : ` · ${unsyncedCount} pending`
+                  : ` · ${unsyncedCount + unsyncedShoppingCount} pending`
               : ''}
           </Text>
 
@@ -150,8 +152,8 @@ export default function ProfileScreen() {
                       ? 'सिंक हो रहा है…'
                       : 'Syncing…'
                     : locale === 'hi'
-                      ? 'रेसिपी सिंक करें'
-                      : 'Sync recipes'}
+                      ? 'रेसिपी और सूची सिंक करें'
+                      : 'Sync recipes & list'}
                 </Button>
                 <Button variant="secondary" block onPress={() => void onSignOut()}>
                   {c.auth.signOut}

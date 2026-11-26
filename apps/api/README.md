@@ -137,7 +137,7 @@ curl -s -X POST http://localhost:3000/api/auth/otp/verify \
 
 | Method | Path | Purpose |
 |--------|------|---------|
-| `GET` | `/api/health` | Deploy check (`authMock`, `smsConfigured`, `googleConfigured`, `databaseConfigured`, live DB ping, `recipesSchemaReady`) |
+| `GET` | `/api/health` | Deploy check (`authMock`, `smsConfigured`, `googleConfigured`, `databaseConfigured`, live DB ping, `recipesSchemaReady`, `shoppingSchemaReady`) |
 | `POST` | `/api/auth/otp/start` | Start phone OTP (+91) — mock or MSG91 SendOTP |
 | `POST` | `/api/auth/otp/verify` | Verify OTP → session (+ DB upsert, or **link** to `linkUserId` when set) |
 | `POST` | `/api/auth/oauth/[provider]` | `google` (ID token verify + upsert) \| `apple` (mock / 501) |
@@ -146,15 +146,25 @@ curl -s -X POST http://localhost:3000/api/auth/otp/verify \
 | `GET` | `/api/recipes/[id]` | Get one recipe |
 | `PATCH` | `/api/recipes/[id]` | Update recipe (LWW) |
 | `DELETE` | `/api/recipes/[id]` | Soft-delete (`?updatedAt=` optional) |
+| `GET` | `/api/shopping-lists` | List shopping lists (ensures default `list_<userId>`) |
+| `POST` | `/api/shopping-lists` | Create / upsert list (LWW) |
+| `GET` | `/api/shopping-lists/[id]` | Get one list |
+| `PATCH` | `/api/shopping-lists/[id]` | Update list (LWW) |
+| `DELETE` | `/api/shopping-lists/[id]` | Soft-delete list |
+| `GET` | `/api/shopping-lists/items` | List checklist items (`?includeDeleted=1`, `?listId=`) |
+| `POST` | `/api/shopping-lists/items` | Create / upsert item (LWW on `updated_at`) |
+| `GET` | `/api/shopping-lists/items/[id]` | Get one item |
+| `PATCH` | `/api/shopping-lists/items/[id]` | Update item (LWW) |
+| `DELETE` | `/api/shopping-lists/items/[id]` | Soft-delete item |
 
-### Recipe auth
+### Recipe / shopping auth
 
-All `/api/recipes*` routes require:
+All `/api/recipes*` and `/api/shopping-lists*` routes require:
 
 - `Authorization: Bearer <idToken>` — Google ID token (live) or mock session token
 - `X-KYF-User-Id: <uuid>` — Neon user id (required for mock/phone; optional hint for Google)
 
-Guests do not call these routes. Schema auto-migrates via `ensureRecipesSchema` on first request / health ping.
+Guests do not call these routes. Schema auto-migrates via `ensureRecipesSchema` / `ensureShoppingSchema` on first request / health ping.
 
 ## Schema
 
@@ -163,6 +173,8 @@ Guests do not call these routes. Schema auto-migrates via `ensureRecipesSchema` 
 - `users` — id, display_name, preferred_locale, diet_prefs, open_to_orders, …
 - `auth_identities` — provider (`phone` \| `google` \| `apple`), provider_subject, phone_e164, email; unique `(provider, provider_subject)`
 - `recipes` — client `id` (TEXT), `owner_user_id`, JSONB `payload`, LWW `updated_at`, soft `deleted_at`
+- `shopping_lists` — client `id` (TEXT; default `list_<userId>`), `owner_user_id`, LWW `updated_at`, soft `deleted_at`
+- `shopping_items` — client `id` (TEXT), `list_id`, `owner_user_id`, JSONB `payload`, LWW `updated_at`, soft `deleted_at`
 
 ## Env vars
 
@@ -208,4 +220,4 @@ Live Google is independent of `AUTH_MOCK` so phone OTP can stay on mock while Go
 
 ## Out of scope (this scaffold)
 
-Twilio/Firebase SMS, Apple live verify, full recipe/shopping schema, PostHog, UI redesign.
+Twilio/Firebase SMS, Apple live verify, PostHog, UI redesign.
