@@ -131,8 +131,19 @@ export function createEmptySnapshot(locale: AppLocale = 'en'): GuestStoreSnapsho
   };
 }
 
+function recipeRecency(recipe: GuestRecipe): number {
+  const raw = recipe.updatedAt || recipe.createdAt;
+  if (!raw) return 0;
+  const n = new Date(raw).getTime();
+  return Number.isNaN(n) ? 0 : n;
+}
+
+/** Active recipes, newest-first so "Just imported" / hero stays accurate. */
 export function activeRecipes(snap: GuestStoreSnapshot) {
-  return snap.recipes.filter((r) => !r.deletedAt);
+  return snap.recipes
+    .filter((r) => !r.deletedAt)
+    .slice()
+    .sort((a, b) => recipeRecency(b) - recipeRecency(a));
 }
 
 export function activeShoppingItems(snap: GuestStoreSnapshot) {
@@ -442,6 +453,71 @@ export function buildImportedDal(link?: string): GuestRecipe {
     createdAt: nowIso(),
     updatedAt: nowIso(),
     syncStatus: 'local',
+  };
+}
+
+/** Blank recipe for scan / paste-text / write-yourself entry points. */
+export function buildBlankRecipe(
+  importSource: GuestRecipe['importSource'] = 'manual',
+): GuestRecipe {
+  const t = nowIso();
+  return {
+    id: uid('recipe'),
+    title: 'Untitled recipe',
+    titleHi: 'बिना नाम की रेसिपी',
+    description: '',
+    diet: 'veg',
+    art: 'bowl',
+    tone: 'haldi',
+    tags: [],
+    time: '',
+    servings: '',
+    ingredients: [],
+    steps: [],
+    importSource,
+    createdAt: t,
+    updatedAt: t,
+    syncStatus: 'local',
+  };
+}
+
+/**
+ * Merge walkthrough demo recipes into an existing snapshot without wiping
+ * user-created recipes or clearing signed-in state.
+ */
+export function mergeDemoRecipesInto(snap: GuestStoreSnapshot): GuestStoreSnapshot {
+  const demos = buildDemoRecipes();
+  const byId = new Map(snap.recipes.map((r) => [r.id, r]));
+  const signed = Boolean(snap.signedIn);
+  for (const demo of demos) {
+    const existing = byId.get(demo.id);
+    if (!existing) {
+      byId.set(demo.id, {
+        ...demo,
+        syncStatus: signed ? 'pending' : 'local',
+      });
+      continue;
+    }
+    // Keep user edits; only backfill missing demo shell if soft-deleted.
+    if (existing.deletedAt) {
+      byId.set(demo.id, {
+        ...demo,
+        syncStatus: signed ? 'pending' : 'local',
+        deletedAt: null,
+      });
+    }
+  }
+  const recipes = Array.from(byId.values());
+  const shoppingItems =
+    activeShoppingItems({ ...snap, recipes }).length > 0
+      ? snap.shoppingItems
+      : buildDemoShopping(demos);
+  return {
+    ...snap,
+    recipes,
+    shoppingItems,
+    seededDemo: true,
+    onboardingComplete: true,
   };
 }
 

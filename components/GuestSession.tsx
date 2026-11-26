@@ -28,6 +28,7 @@ import { setLocale as setI18nLocale, type AppLocale } from '@/lib/i18n';
 import {
   activeRecipes,
   activeShoppingItems,
+  buildBlankRecipe,
   buildDemoRecipes,
   buildDemoShopping,
   buildImportedDal,
@@ -35,6 +36,7 @@ import {
   createEmptySnapshot,
   guestStore,
   markPrompt,
+  mergeDemoRecipesInto,
   N_RECIPES_PROMPT_AT,
   shouldShowPrompt,
   type AccountPromptKind,
@@ -67,6 +69,8 @@ type GuestSessionValue = {
   /** Active checklist items still local/pending (0 when guest or all synced). */
   unsyncedShoppingCount: number;
   syncing: boolean;
+  /** Last cloud sync outcome (null before first attempt). */
+  lastSync: SyncResult | null;
   toggleDiet: (diet: Diet) => void;
   toggleSource: (key: SourceKey) => void;
   setLocalePref: (locale: AppLocale) => void;
@@ -85,6 +89,10 @@ type GuestSessionValue = {
   seedDemoData: () => Promise<void>;
   resetGuestData: () => Promise<void>;
   importDemoRecipe: (link?: string) => Promise<{ recipe: GuestRecipe; prompt: AccountPromptKind | null }>;
+  /** Create a blank recipe (scan / paste / write) and optionally kick sync. */
+  createManualRecipe: (
+    importSource?: GuestRecipe['importSource'],
+  ) => Promise<{ recipe: GuestRecipe; prompt: AccountPromptKind | null }>;
   saveSharedRecipe: () => Promise<{ recipe: GuestRecipe; prompt: AccountPromptKind | null }>;
   recordShare: (recipeId: string) => Promise<AccountPromptKind | null>;
   getRecipe: (id: string) => GuestRecipe | undefined;
@@ -116,6 +124,7 @@ function GuestSessionInner({ children }: { children: ReactNode }) {
   const [authSession, setAuthSession] = useState<AuthSession | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
+  const [lastSync, setLastSync] = useState<SyncResult | null>(null);
   const syncInFlight = useRef(false);
   const authSessionRef = useRef<AuthSession | null>(null);
 
@@ -182,7 +191,7 @@ function GuestSessionInner({ children }: { children: ReactNode }) {
           snapshot: current,
           applySnapshot,
         });
-        return {
+        const combined = {
           ok: recipesResult.ok && shoppingResult.ok,
           pushed: recipesResult.pushed + shoppingResult.pushed,
           pulled: recipesResult.pulled + shoppingResult.pulled,
@@ -190,6 +199,8 @@ function GuestSessionInner({ children }: { children: ReactNode }) {
           reason: recipesResult.reason || shoppingResult.reason,
           error: recipesResult.error || shoppingResult.error,
         } satisfies SyncResult;
+        setLastSync(combined);
+        return combined;
       } finally {
         syncInFlight.current = false;
         setSyncing(false);
@@ -319,6 +330,7 @@ function GuestSessionInner({ children }: { children: ReactNode }) {
       unsyncedCount,
       unsyncedShoppingCount: unsyncedShopping,
       syncing,
+      lastSync,
       toggleDiet: (diet) => {
         void mutate((s) => ({ ...s, diets: { ...s.diets, [diet]: !s.diets[diet] } }));
       },
@@ -385,6 +397,8 @@ function GuestSessionInner({ children }: { children: ReactNode }) {
               : { ...i, syncStatus: 'pending' as SyncStatus },
           ),
         }));
+        // Kick sync immediately — merge screen may be dismissed without claimMerge.
+        void runSync(session);
       },
       signOut: async () => {
         await authClient.signOut();
@@ -398,18 +412,15 @@ function GuestSessionInner({ children }: { children: ReactNode }) {
       },
       showToast: setToast,
       seedDemoData: async () => {
+        // Merge demos by stable id — never wipe user recipes or clear signed-in.
+        let shouldSync = false;
         await mutate((s) => {
-          const recipesDemo = buildDemoRecipes();
-          return {
-            ...s,
-            onboardingComplete: true,
-            recipes: recipesDemo,
-            shoppingItems: buildDemoShopping(recipesDemo),
-            seededDemo: true,
-            signedIn: false,
-            claimedAt: null,
-          };
+          shouldSync = Boolean(s.signedIn);
+          return mergeDemoRecipesInto(s);
         });
+        if (shouldSync) {
+          void runSync(authSessionRef.current);
+        }
       },
       resetGuestData: async () => {
         await authClient.signOut();
@@ -434,9 +445,10 @@ function GuestSessionInner({ children }: { children: ReactNode }) {
             syncStatus: initialSyncStatus(signed),
           };
           shouldSync = signed;
+          // Prepend so newest stays first even before activeRecipes sort.
           let next: GuestStoreSnapshot = {
             ...s,
-            recipes: [...s.recipes, recipe],
+            recipes: [recipe, ...s.recipes],
             onboardingComplete: true,
           };
           const count = activeRecipes(next).length;
@@ -457,6 +469,36 @@ function GuestSessionInner({ children }: { children: ReactNode }) {
         }
         return { recipe, prompt };
       },
+      createManualRecipe: async (importSource = 'manual') => {
+        let prompt: AccountPromptKind | null = null;
+        let recipe = buildBlankRecipe(importSource);
+        let shouldSync = false;
+        await mutate((s) => {
+          const signed = Boolean(s.signedIn);
+          recipe = { ...recipe, syncStatus: initialSyncStatus(signed) };
+          shouldSync = signed;
+          let next: GuestStoreSnapshot = {
+            ...s,
+            recipes: [recipe, ...s.recipes],
+            onboardingComplete: true,
+          };
+          if (shouldShowPrompt(next, 'first-save')) {
+            prompt = 'first-save';
+            next = markPrompt(next, 'first-save');
+          } else if (
+            activeRecipes(next).length >= N_RECIPES_PROMPT_AT &&
+            shouldShowPrompt(next, 'n-recipes')
+          ) {
+            prompt = 'n-recipes';
+            next = markPrompt(next, 'n-recipes');
+          }
+          return next;
+        });
+        if (shouldSync) {
+          void runSync(authSessionRef.current);
+        }
+        return { recipe, prompt };
+      },
       saveSharedRecipe: async () => {
         let prompt: AccountPromptKind | null = null;
         let recipe = buildSharedPaneer();
@@ -467,7 +509,7 @@ function GuestSessionInner({ children }: { children: ReactNode }) {
           shouldSync = signed;
           let next: GuestStoreSnapshot = {
             ...s,
-            recipes: [...s.recipes, recipe],
+            recipes: [recipe, ...s.recipes],
             onboardingComplete: true,
           };
           if (shouldShowPrompt(next, 'first-save')) {
@@ -498,7 +540,9 @@ function GuestSessionInner({ children }: { children: ReactNode }) {
         });
         return prompt;
       },
-      getRecipe: (id) => recipes.find((r) => r.id === id),
+      getRecipe: (id) =>
+        snap.recipes.find((r) => r.id === id && !r.deletedAt) ||
+        recipes.find((r) => r.id === id),
       addIngredientsToList: async (recipeId) => {
         let shouldSync = false;
         await mutate((s) => {
@@ -630,6 +674,7 @@ function GuestSessionInner({ children }: { children: ReactNode }) {
       unsyncedCount,
       unsyncedShopping,
       syncing,
+      lastSync,
       mutate,
       setLocale,
       runSync,

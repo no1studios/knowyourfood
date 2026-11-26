@@ -47,10 +47,12 @@ export default function MyRecipesScreen() {
     showToast,
     seedDemoData,
     claimMerge,
+    createManualRecipe,
     shoppingItems,
     recipesSynced,
     unsyncedCount,
     syncing,
+    lastSync,
   } = useGuestSession();
   const insets = useSafeAreaInsets();
   const c = copy(locale);
@@ -105,7 +107,20 @@ export default function MyRecipesScreen() {
               </Button>
             }
             secondary={
-              <Button variant="ghost" block onPress={() => router.push('/recipe/demo/edit')}>
+              <Button
+                variant="ghost"
+                block
+                onPress={() => {
+                  void (async () => {
+                    const { recipe, prompt } = await createManualRecipe('manual');
+                    if (prompt) {
+                      router.replace(`/account-prompt?variant=${prompt}`);
+                    } else {
+                      router.replace(`/recipe/${recipe.id}/edit`);
+                    }
+                  })();
+                }}
+              >
                 {c.empty.secondary}
               </Button>
             }
@@ -158,6 +173,19 @@ export default function MyRecipesScreen() {
               ) : recipesSynced ? (
                 <Tag tone="mint" icon="check">
                   {c.home.synced}
+                </Tag>
+              ) : lastSync?.skipped &&
+                lastSync.reason &&
+                lastSync.reason !== 'in_flight' &&
+                lastSync.reason !== 'guest' ? (
+                <Tag tone="haldi" icon="sparkle">
+                  {c.home.syncUnavailable}
+                </Tag>
+              ) : lastSync && !lastSync.ok && lastSync.error ? (
+                <Tag tone="rose" icon="sparkle">
+                  {unsyncedCount > 0
+                    ? `${c.home.syncFailed} · ${unsyncedCount}`
+                    : c.home.syncFailed}
                 </Tag>
               ) : (
                 <Tag tone="haldi" icon="sparkle">

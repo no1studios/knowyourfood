@@ -11,7 +11,7 @@ type TabRoute = { key: string; name: string; params?: object };
 
 type BottomNavProps = {
   state: { index: number; routes: TabRoute[] };
-  descriptors: Record<string, { options: { title?: string } }>;
+  descriptors: Record<string, { options: { title?: string; href?: string | null } }>;
   navigateToTab?: (routeKey: string) => void;
   navigation?: {
     emit: (event: {
@@ -29,6 +29,9 @@ const ICONS: Record<string, IconName> = {
   checklist: 'cart',
   profile: 'user',
 };
+
+/** Visual pill order (navigator file-order may differ — see tabs _layout). */
+const DISPLAY_ORDER = ['index', 'checklist', 'search', 'profile'];
 
 /**
  * Floating pill BottomNav from MVP v2 frames (not docked DS CSS alone).
@@ -71,7 +74,19 @@ export function BottomNav({ state, descriptors, navigation, navigateToTab }: Bot
           },
         ]}
       >
-        {state.routes.map((route, index) => {
+        {[...state.routes]
+          .filter((route) => descriptors[route.key]?.options?.href !== null)
+          .sort(
+            (a, b) =>
+              (DISPLAY_ORDER.indexOf(a.name) === -1
+                ? 99
+                : DISPLAY_ORDER.indexOf(a.name)) -
+              (DISPLAY_ORDER.indexOf(b.name) === -1
+                ? 99
+                : DISPLAY_ORDER.indexOf(b.name)),
+          )
+          .map((route) => {
+          const index = state.routes.findIndex((r) => r.key === route.key);
           const focused = state.index === index;
           const { options } = descriptors[route.key];
           const label = labels[route.name] ?? options.title ?? route.name;

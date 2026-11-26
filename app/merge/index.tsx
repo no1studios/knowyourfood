@@ -21,6 +21,7 @@ export default function MergeScreen() {
   const c = copy(locale);
 
   const finish = async (toast: string, strategy: 'keep-all' | 'collision' | 'skip') => {
+    // Seed demos only when empty — mergeDemoRecipesInto keeps signed-in + user recipes.
     if (recipes.length === 0) await seedDemoData();
     await claimMerge(strategy);
     showToast(toast);

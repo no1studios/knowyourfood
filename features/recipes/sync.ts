@@ -210,7 +210,11 @@ export function mergeRecipesLww(
     }
   }
 
-  return Array.from(byId.values());
+  return Array.from(byId.values()).sort((a, b) => {
+    const tb = new Date(b.updatedAt || b.createdAt || 0).getTime();
+    const ta = new Date(a.updatedAt || a.createdAt || 0).getTime();
+    return (Number.isNaN(tb) ? 0 : tb) - (Number.isNaN(ta) ? 0 : ta);
+  });
 }
 
 /**
@@ -291,13 +295,23 @@ export async function syncRecipesWithServer(args: {
       }
     }
 
-    snap = await args.applySnapshot({ ...snap, recipes: afterPush });
+    const sorted = afterPush.sort((a, b) => {
+      const tb = new Date(b.updatedAt || b.createdAt || 0).getTime();
+      const ta = new Date(a.updatedAt || a.createdAt || 0).getTime();
+      return (Number.isNaN(tb) ? 0 : tb) - (Number.isNaN(ta) ? 0 : ta);
+    });
+    snap = await args.applySnapshot({ ...snap, recipes: sorted });
+
+    const stillPending = sorted.some(
+      (r) => !r.deletedAt && r.syncStatus !== 'synced',
+    );
 
     return {
-      ok: true,
+      ok: !stillPending,
       pushed,
       pulled: remote.length,
       skipped: false,
+      error: stillPending ? 'Some recipes could not be pushed' : undefined,
     };
   } catch (err) {
     const message = err instanceof Error ? err.message : 'sync failed';

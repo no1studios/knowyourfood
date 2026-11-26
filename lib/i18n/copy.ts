@@ -152,6 +152,8 @@ export function copy(locale: AppLocale) {
       synced: x('Synced', 'सिंक हो गया'),
       syncing: x('Syncing…', 'सिंक हो रहा है…'),
       pendingSync: x('Not synced yet', 'अभी सिंक नहीं हुआ'),
+      syncUnavailable: x('Cloud sync unavailable', 'क्लाउड सिंक उपलब्ध नहीं'),
+      syncFailed: x('Sync failed — tap Profile to retry', 'सिंक नहीं हुआ — प्रोफ़ाइल से फिर कोशिश करें'),
       guestToast: x(
         'You’re cooking as a guest. Your recipes stay on this phone.',
         'आप मेहमान के रूप में जारी हैं। आपकी रेसिपी इसी फ़ोन पर रहेंगी।',
